@@ -1,0 +1,36 @@
+import type { WizardStepProps } from '../../components/Wizard';
+import SubStepProgress from '../../components/SubStepProgress';
+import type { EraseNVMState } from './wizard';
+
+const subStepNames = [
+  'Detect application',
+  'Reset into bootloader',
+  'Erase NVM',
+  'Start application',
+];
+
+export default function EraseStep({ context }: WizardStepProps<EraseNVMState>) {
+  const { isErasing, currentSubStep } = context.state;
+
+  return (
+    <div className="py-8">
+      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+        Erasing NVM
+      </h3>
+
+      <SubStepProgress
+        steps={subStepNames.map(name => ({ name }))}
+        currentStepIndex={currentSubStep}
+      />
+
+      {isErasing && (
+        <div className="text-center mt-6">
+          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-4"></div>
+          <p className="text-gray-600 dark:text-gray-300">
+            Erasing NVM data... Please do not disconnect the device.
+          </p>
+        </div>
+      )}
+    </div>
+  );
+}

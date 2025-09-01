@@ -36,38 +36,82 @@ export const ZWA2_DEVICE_FILTERS: DeviceFilters[] = [
 	{ usbVendorId: 0x303a, usbProductId: 0x4001 },
 ];
 
-export class ZWaveFlasher {
+export class ZWaveBinding {
 	private driver?: Driver;
-	private port?: SerialPort;
-	private serialBinding?: ZWaveSerialBindingFactory;
+	private port: SerialPort;
+	private serialBinding: ZWaveSerialBindingFactory;
 	private readyPromise?: DeferredPromise<void>;
 
 	public onProgress?: (progress: number) => void;
 	public onError?: (error: string) => void;
 	public onReady?: () => void;
 
-	async requestPort(): Promise<boolean> {
-		try {
-			this.port = await navigator.serial.requestPort({
-				filters: ZWA2_DEVICE_FILTERS,
-			});
-			await this.port.open({ baudRate: 115200 });
-			return true;
-		} catch (e) {
-			console.error("Failed to connect to device:", e);
-			this.onError?.(getErrorMessage(e));
-			return false;
-		}
+	constructor(port: SerialPort) {
+		this.port = port;
+		this.serialBinding = createWebSerialPortFactory(port);
 	}
 
 	async initialize(): Promise<boolean> {
-		if (!this.port) {
-			this.onError?.("No port connected");
+		return await this.createDriver();
+	}
+
+	async resetToBootloader(): Promise<boolean> {
+		if (!this.port) return false;
+
+		// Hardware reset into bootloader
+		await this.driver?.destroy();
+
+		await this.port.setSignals({
+			dataTerminalReady: false,
+			requestToSend: true,
+		});
+		await wait(100);
+		await this.port.setSignals({
+			dataTerminalReady: true,
+			requestToSend: false,
+		});
+		await wait(500);
+		await this.port.setSignals({
+			dataTerminalReady: false,
+			requestToSend: false,
+		});
+
+		const success = await this.createDriver();
+		if (success) {
+			return this.driver?.mode === DriverMode.Bootloader;
+		}
+		return false;
+	}
+
+	async runApplication(): Promise<boolean> {
+		if (!this.driver || this.driver.mode !== DriverMode.Bootloader) {
+			this.onError?.("Not in bootloader mode");
 			return false;
 		}
 
-		this.serialBinding = createWebSerialPortFactory(this.port);
-		return await this.createDriver();
+		try {
+			const option = this.driver.bootloader.findOption((o) => o === "run application");
+			if (option === undefined) {
+				this.onError?.("Run application option not found");
+				return false;
+			}
+
+			await this.driver.bootloader.selectOption(option);
+
+			// Wait a bit for the application to start
+			await wait(2000);
+
+			// Try to reconnect in application mode
+			const success = await this.createDriver();
+			if (success && this.driver?.mode !== DriverMode.Bootloader) {
+				return true;
+			}
+
+			return false;
+		} catch (e) {
+			this.onError?.(`Failed to run application: ${getErrorMessage(e)}`);
+			return false;
+		}
 	}
 
 	private async createDriver(): Promise<boolean> {
@@ -165,7 +209,11 @@ export class ZWaveFlasher {
 
 			// Ensure we're in bootloader mode
 			if (this.driver.mode !== DriverMode.Bootloader) {
-				await this.resetToBootloader();
+				const success = await this.resetToBootloader();
+				if (!success) {
+					this.onError?.("Failed to reset to bootloader");
+					return false;
+				}
 			}
 
 			const result = await this.driver.firmwareUpdateOTW(firmware.data);
@@ -197,7 +245,11 @@ export class ZWaveFlasher {
 
 		try {
 			// Force into bootloader mode
-			await this.resetToBootloader();
+			const bootloaderSuccess = await this.resetToBootloader();
+			if (!bootloaderSuccess) {
+				this.onError?.("Failed to reset to bootloader");
+				return false;
+			}
 
 			const option = this.driver.bootloader.findOption(
 				(o) => o === "erase nvm",
@@ -245,30 +297,6 @@ export class ZWaveFlasher {
 		}
 	}
 
-	private async resetToBootloader(): Promise<void> {
-		if (!this.port) return;
-
-		// Hardware reset into bootloader
-		await this.driver?.destroy();
-
-		await this.port.setSignals({
-			dataTerminalReady: false,
-			requestToSend: true,
-		});
-		await wait(100);
-		await this.port.setSignals({
-			dataTerminalReady: true,
-			requestToSend: false,
-		});
-		await wait(500);
-		await this.port.setSignals({
-			dataTerminalReady: false,
-			requestToSend: false,
-		});
-
-		await this.createDriver();
-	}
-
 	getDriverMode(): DriverMode | undefined {
 		return this.driver?.mode;
 	}
@@ -284,6 +312,22 @@ export class ZWaveFlasher {
 		}
 		if (this.port) {
 			await this.port.close().catch(() => {});
+		}
+	}
+}
+
+// Helper class for requesting and managing SerialPort connection
+export class ZWavePortManager {
+	static async requestPort(): Promise<SerialPort | null> {
+		try {
+			const port = await navigator.serial.requestPort({
+				filters: ZWA2_DEVICE_FILTERS,
+			});
+			await port.open({ baudRate: 115200 });
+			return port;
+		} catch (e) {
+			console.error("Failed to connect to device:", e);
+			return null;
 		}
 	}
 }

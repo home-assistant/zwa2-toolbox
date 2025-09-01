@@ -1,11 +1,7 @@
-interface ConnectStepProps {
-  isConnected: boolean;
-  isConnecting: boolean;
-  onDisconnect?: () => Promise<void>;
-}
+import type { WizardStepProps } from '../Wizard';
 
-export default function ConnectStep({ isConnected, isConnecting, onDisconnect }: ConnectStepProps) {
-  if (isConnected) {
+export default function ConnectStep<T>({ context }: WizardStepProps<T>) {
+  if (context.isConnected) {
     return (
       <div className="text-center py-8">
         <div className="text-green-600 dark:text-green-400 mb-4">
@@ -19,9 +15,9 @@ export default function ConnectStep({ isConnected, isConnecting, onDisconnect }:
         <p className="text-gray-600 dark:text-gray-300 mb-6">
           Successfully connected to your ZWA-2 device via Web Serial.
         </p>
-        {onDisconnect && (
+        {context.onDisconnect && (
           <button
-            onClick={onDisconnect}
+            onClick={context.onDisconnect}
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
           >
             Disconnect & Connect Different Device
@@ -39,7 +35,7 @@ export default function ConnectStep({ isConnected, isConnecting, onDisconnect }:
       <p className="text-gray-600 dark:text-gray-300 mb-6">
         First, we need to establish a connection to your ZWA-2 device via Web Serial.
       </p>
-      {isConnecting && (
+      {context.isConnecting && (
         <p className="text-indigo-600 dark:text-indigo-400">Connecting...</p>
       )}
     </div>
