@@ -3,6 +3,7 @@ import ConnectStep from "../../components/steps/ConnectStep";
 import FileSelectStep from "./FileSelectStep";
 import FlashStep from "./FlashStep";
 import type { WizardConfig, WizardContext } from "../../components/Wizard";
+import { openFirmwareFile } from "../../lib/firmware-download";
 
 export interface UpdateFirmwareState {
 	selectedFile: File | null;
@@ -50,7 +51,10 @@ async function handleUpdateNavigation(
 			}));
 		};
 
-		const success = await context.zwaveBinding.flashFirmware(selectedFile);
+		// Extract firmware from file
+		const { fileName, data } = await openFirmwareFile(selectedFile);
+
+		const success = await context.zwaveBinding.flashFirmware(fileName, data);
 		if (success) {
 			context.setState((prev) => ({
 				...prev,

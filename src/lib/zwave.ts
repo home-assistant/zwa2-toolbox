@@ -20,6 +20,7 @@ import {
 	getEnumMemberName,
 	guessFirmwareFileFormat,
 	tryUnzipFirmwareFile,
+	type FirmwareFileFormat,
 } from "zwave-js";
 
 export interface DeviceFilters {
@@ -161,34 +162,30 @@ export class ZWaveBinding {
 		this.onReady?.();
 	}
 
-	async flashFirmware(firmwareFile: File): Promise<boolean> {
+	async flashFirmware(fileName: string, firmwareData: Uint8Array): Promise<boolean> {
 		if (!this.driver) {
 			this.onError?.("Driver not initialized");
 			return false;
 		}
 
 		try {
-			const rawFile = new Uint8Array(await firmwareFile.arrayBuffer());
-			let firmwareData: Uint8Array;
-			let filename: string;
+			let format: FirmwareFileFormat | undefined;
 
-			// Check if the file is a ZIP archive
-			if (firmwareFile.name.toLowerCase().endsWith(".zip")) {
-				const unzippedFirmware = tryUnzipFirmwareFile(rawFile);
+			// Check if the data is a ZIP archive based on filename
+			if (fileName.toLowerCase().endsWith(".zip")) {
+				const unzippedFirmware = tryUnzipFirmwareFile(firmwareData);
 				if (!unzippedFirmware) {
 					this.onError?.(
-						"Could not extract a valid firmware file from the ZIP archive.",
+						"Could not extract a valid firmware file from the ZIP archive."
 					);
 					return false;
 				}
 				firmwareData = unzippedFirmware.rawData;
-				filename = unzippedFirmware.filename;
-			} else {
-				firmwareData = rawFile;
-				filename = firmwareFile.name;
+				format = unzippedFirmware.format;
+				fileName = unzippedFirmware.filename;
 			}
 
-			const format = guessFirmwareFileFormat(filename, firmwareData);
+			format ??= guessFirmwareFileFormat(fileName, firmwareData);
 			const firmware = await extractFirmware(firmwareData, format);
 
 			// Ensure we're in bootloader mode

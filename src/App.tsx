@@ -7,38 +7,6 @@ import WebSerialWarning from "./components/WebSerialWarning";
 import Wizard from "./components/Wizard";
 import type { BaseWizardContext } from "./components/Wizard";
 import { wizards, type WizardId } from "./wizards";
-import {
-	installFirmwareWizardConfig,
-} from "./wizards/install-firmware";
-import {
-	updateFirmwareWizardConfig,
-} from "./wizards/update-firmware";
-import {
-	eraseNVMWizardConfig,
-} from "./wizards/erase-nvm";
-import {
-	recoverAdapterWizardConfig,
-} from "./wizards/recover-adapter";
-
-// All wizard configurations
-const allWizards = [
-	{
-		id: "install" as const,
-		config: installFirmwareWizardConfig,
-	},
-	{
-		id: "update" as const,
-		config: updateFirmwareWizardConfig,
-	},
-	{
-		id: "erase" as const,
-		config: eraseNVMWizardConfig,
-	},
-	{
-		id: "recover" as const,
-		config: recoverAdapterWizardConfig,
-	},
-] as const;
 
 interface ConnectionStatus {
 	connected: boolean;
@@ -104,11 +72,13 @@ export default function App() {
 		const baseContext = createBaseWizardContext();
 
 		// Find the wizard configuration by ID
-		const currentWizard = allWizards.find(wizard => wizard.id === activeWizard);
+		const currentWizard = wizards.find(
+			(wizard) => wizard.id === activeWizard,
+		);
 
 		if (currentWizard) {
 			const breadcrumbItems = [
-				{ name: currentWizard.config.title, current: true },
+				{ name: currentWizard.title, current: true },
 			];
 
 			return (
@@ -126,7 +96,7 @@ export default function App() {
 
 						<div className="mt-8">
 							<Wizard
-								config={currentWizard.config as any}
+								config={currentWizard as any}
 								baseContext={baseContext}
 								onClose={handleCloseWizard}
 							/>
@@ -156,7 +126,9 @@ export default function App() {
 				) : (
 					/* Action Cards */
 					<div className="mt-10">
-						<ActionCardsGrid columns={wizards.length % 2 === 0 ? 2 : 3}>
+						<ActionCardsGrid
+							columns={wizards.length % 2 === 0 ? 2 : 3}
+						>
 							{wizards.map((wizard) => (
 								<ActionCard
 									key={wizard.id}

@@ -6,6 +6,7 @@ import SummaryStep from "./SummaryStep.tsx";
 import type { WizardConfig, WizardContext } from "../../components/Wizard";
 import { DriverMode } from "zwave-js";
 import type { ReactNode } from "react";
+import { downloadLatestFirmware, openFirmwareFile } from "../../lib/firmware-download";
 
 export type DiagnosisResult =
 	| { tag: "NO_ISSUES" }
@@ -15,6 +16,7 @@ export type DiagnosisResult =
 	| { tag: "UNKNOWN_FIRMWARE" }
 	| { tag: "CONNECTION_FAILED" }
 	| { tag: "RECOVERY_FAILED" }
+	| { tag: "DOWNLOAD_FAILED" }
 	| { tag: "RECOVERED" };
 
 export type RecoveryResultSeverity = "success" | "warning" | "error";
@@ -25,6 +27,7 @@ export interface RecoveryResult {
 	message: ReactNode;
 }
 
+// FIXME: There is a lot of duplication in this state, and some of it should rather be a property on the corresponding DiagnosisResult
 export interface RecoverAdapterState {
 	diagnosisResult: DiagnosisResult | null;
 	isDiagnosing: boolean;
@@ -32,12 +35,14 @@ export interface RecoverAdapterState {
 	isRecovering: boolean;
 	recoveryProgress: number;
 	finalResult: DiagnosisResult | null;
+	recoveryError: string | null;
+	downloadedFirmwareName: string | null;
 }
 
 async function handleRecoveryNavigation(
 	context: WizardContext<RecoverAdapterState>,
 ): Promise<boolean | number> {
-	const { isRecovering, finalResult, selectedFile, diagnosisResult } = context.state;
+	const { isRecovering, finalResult, diagnosisResult } = context.state;
 
 	if (finalResult) {
 		// Recovery complete, go to summary
@@ -48,14 +53,8 @@ async function handleRecoveryNavigation(
 		return false; // Don't allow navigation while recovering
 	}
 
-	// Check if we need a custom firmware file but don't have one
-	if (!selectedFile && !diagnosisResult) {
-		return false;
-	}
-
-	// For latest firmware option (when selectedFile is null), show warning for now
-	if (!selectedFile) {
-		// TODO: Implement latest firmware download
+	// Check if we have a diagnosis result
+	if (!diagnosisResult) {
 		return false;
 	}
 
@@ -76,6 +75,7 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 			...prev,
 			isRecovering: true,
 			recoveryProgress: 0,
+			recoveryError: null, // Clear any previous errors
 		}));
 
 		// Set up progress callback
@@ -83,21 +83,47 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 			context.setState(prev => ({ ...prev, recoveryProgress: progress }));
 		};
 
-		let firmwareFile: File;
+		let fileName: string;
+		let firmwareData: Uint8Array;
 
 		if (selectedFile) {
-			firmwareFile = selectedFile;
+			// Extract firmware from custom file
+			try {
+				const extracted = await openFirmwareFile(selectedFile);
+				fileName = extracted.fileName;
+				firmwareData = extracted.data;
+			} catch (error) {
+				console.error("Failed to load firmware from file:", error);
+				context.setState(prev => ({
+					...prev,
+					isRecovering: false,
+					finalResult: { tag: "RECOVERY_FAILED" }
+				}));
+				context.goToStep("Summary");
+				return false;
+			}
 		} else {
-			// TODO: Implement downloading latest firmware
-			context.setState(prev => ({
-				...prev,
-				isRecovering: false,
-				finalResult: { tag: "RECOVERY_FAILED" }
-			}));
-			return false;
+			// Download latest firmware
+			try {
+				const downloaded = await downloadLatestFirmware();
+				fileName = downloaded.fileName;
+				firmwareData = downloaded.data;
+				// Store the downloaded firmware name for display
+				context.setState(prev => ({ ...prev, downloadedFirmwareName: fileName }));
+			} catch (error) {
+				console.error("Failed to download latest firmware:", error);
+				context.setState(prev => ({
+					...prev,
+					isRecovering: false,
+					finalResult: { tag: "DOWNLOAD_FAILED" }
+				}));
+				context.goToStep("Summary");
+				return false;
+			}
 		}
 
-		const success = await context.zwaveBinding.flashFirmware(firmwareFile);
+		// Flash the firmware
+		const success = await context.zwaveBinding.flashFirmware(fileName, firmwareData);
 
 		if (success) {
 			// Check the mode after recovery
@@ -122,20 +148,16 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 					finalResult: { tag: "RECOVERY_FAILED" }
 				}));
 			}
-
-			// Automatically navigate to summary after successful recovery
-			context.goToStep("Summary");
 		} else {
 			context.setState(prev => ({
 				...prev,
 				isRecovering: false,
 				finalResult: { tag: "RECOVERY_FAILED" }
 			}));
-
-			// Also navigate to summary on failure to show the error
-			context.goToStep("Summary");
 		}
 
+		// Always navigate to summary after recovery attempt
+		context.goToStep("Summary");
 		return success;
 	} catch (error) {
 		console.error("Recovery failed:", error);
@@ -145,7 +167,7 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 			finalResult: { tag: "RECOVERY_FAILED" }
 		}));
 
-		// Navigate to summary to show the error
+		// Always navigate to summary on error
 		context.goToStep("Summary");
 		return false;
 	}
@@ -214,6 +236,8 @@ export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 		isRecovering: false,
 		recoveryProgress: 0,
 		finalResult: null,
+		recoveryError: null,
+		downloadedFirmwareName: null,
 	}),
 	steps: [
 		{
@@ -277,13 +301,12 @@ export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 					},
 					beforeNavigate: handleRecoveryNavigation,
 					disabled: (context) => {
-						const { isRecovering, diagnosisResult, selectedFile } = context.state;
+						const { isRecovering, diagnosisResult } = context.state;
 						if (isRecovering) return true;
 						if (!diagnosisResult) return true;
 
-						// For latest firmware option (selectedFile is null), disable until implemented
-						if (!selectedFile) return true;
-
+						// Allow recovery if we have either a selected file or we're using latest firmware
+						// (selectedFile === null means latest firmware option is selected)
 						return false;
 					},
 				},

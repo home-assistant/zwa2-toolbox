@@ -1,10 +1,9 @@
 import { useState } from 'react';
 import type { WizardStepProps } from '../../components/Wizard';
 import type { RecoverAdapterState } from './wizard';
-import Alert from '../../components/Alert';
 
 export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapterState>) {
-  const { diagnosisResult, selectedFile, isRecovering, recoveryProgress } = context.state;
+  const { diagnosisResult, selectedFile, isRecovering, recoveryProgress, downloadedFirmwareName } = context.state;
   const [useCustomFirmware, setUseCustomFirmware] = useState(false);
 
   if (isRecovering) {
@@ -14,7 +13,11 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
           Recovering Adapter
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
-          Installing firmware: {selectedFile?.name || "Latest firmware"}
+            { downloadedFirmwareName ? (
+                <>Installing latest firmware: {downloadedFirmwareName}</>
+            ) : (
+                <>Installing firmware: {selectedFile?.name || "Latest firmware"}</>
+            )}
         </p>
         <div className="mb-6">
           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
@@ -89,15 +92,6 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
               )}
             </div>
           )}
-
-          {!useCustomFirmware && (
-            <Alert title="Latest Firmware" severity="warning">
-              <p>
-                <strong>Note:</strong> Latest firmware download is not yet implemented. 
-                Please provide a custom firmware file for now.
-              </p>
-            </Alert>
-          )}
         </div>
       </div>
     );
@@ -110,7 +104,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
           Recover Unknown Firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
-          Your adapter is running an unknown firmware. This could be Zniffer firmware or other custom firmware. 
+          Your adapter is running an unknown firmware. This could be Zniffer firmware or other custom firmware.
           How would you like to proceed?
         </p>
 
@@ -177,15 +171,6 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
                 </p>
               )}
             </div>
-          )}
-
-          {!useCustomFirmware && (
-            <Alert title="Latest Firmware" severity="warning">
-              <p>
-                <strong>Note:</strong> Latest firmware download is not yet implemented. 
-                Please provide a custom firmware file for now.
-              </p>
-            </Alert>
           )}
         </div>
       </div>

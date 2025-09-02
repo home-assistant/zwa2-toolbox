@@ -86,6 +86,20 @@ function getRecoveryResult(state: RecoverAdapterState): RecoveryResult {
         )
       };
 
+    case "DOWNLOAD_FAILED":
+      return {
+        tag: "DOWNLOAD_FAILED",
+        severity: "error",
+        message: (
+          <div>
+            <p>Failed to download the latest firmware from the internet. This could be due to a network connectivity issue or the firmware repository being temporarily unavailable.</p>
+            <p className="mt-2">
+              <strong>Suggestion:</strong> Check your internet connection and try again, or use the "Install Firmware" wizard to provide a custom firmware file.
+            </p>
+          </div>
+        )
+      };
+
     case "CORRUPTED_FIRMWARE":
       return {
         tag: "CORRUPTED_FIRMWARE",
@@ -132,6 +146,8 @@ function getResultTitle(result: RecoveryResult): string {
       return "Connection Failed";
     case "RECOVERY_FAILED":
       return "Recovery Failed";
+    case "DOWNLOAD_FAILED":
+      return "Firmware Download Failed";
     case "CORRUPTED_FIRMWARE":
       return "Recovery Required";
     case "UNKNOWN_FIRMWARE":

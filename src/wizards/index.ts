@@ -6,8 +6,8 @@ import { recoverAdapterWizardConfig } from './recover-adapter';
 export const wizards = [
   installFirmwareWizardConfig,
   updateFirmwareWizardConfig,
-  eraseNVMWizardConfig,
   recoverAdapterWizardConfig,
+  eraseNVMWizardConfig,
 ] as const;
 
 export type WizardId = typeof wizards[number]['id'];
