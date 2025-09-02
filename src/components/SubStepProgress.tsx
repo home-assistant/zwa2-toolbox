@@ -2,6 +2,7 @@ import { CheckCircleIcon } from '@heroicons/react/20/solid';
 
 export interface SubStep {
   name: string;
+  showSpinner?: boolean;
 }
 
 interface SubStepProgressProps {
@@ -12,7 +13,7 @@ interface SubStepProgressProps {
 export default function SubStepProgress({ steps, currentStepIndex }: SubStepProgressProps) {
   return (
     <div className="px-4 py-12 sm:px-6 lg:px-8">
-      <nav aria-label="Progress" className="flex justify-center">
+      <nav aria-label="Progress">
         <ol role="list" className="space-y-6">
           {steps.map((step, index) => (
             <li key={step.name}>
@@ -36,7 +37,12 @@ export default function SubStepProgress({ steps, currentStepIndex }: SubStepProg
                     <span className="absolute size-4 rounded-full bg-indigo-200 dark:bg-indigo-900" />
                     <span className="relative block size-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
                   </span>
-                  <span className="ml-3 text-sm font-medium text-indigo-600 dark:text-indigo-400">{step.name}</span>
+                  <span className="ml-3 text-sm font-medium text-indigo-600 dark:text-indigo-400 flex items-center">
+                    {step.name}
+                    {step.showSpinner && (
+                      <div className="ml-2 w-4 h-4 border-2 border-indigo-600 border-t-transparent rounded-full animate-spin"></div>
+                    )}
+                  </span>
                 </div>
               ) : (
                 <div className="group">

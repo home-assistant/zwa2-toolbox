@@ -2,7 +2,7 @@ import type { WizardStepProps } from '../../components/Wizard';
 import type { InstallFirmwareState } from './wizard';
 
 export default function SummaryStep({ context }: WizardStepProps<InstallFirmwareState>) {
-  const { flashResult, errorMessage, downloadedFirmwareName } = context.state;
+  const { flashResult, errorMessage } = context.state;
 
   const getResultContent = () => {
     switch (flashResult) {
@@ -17,16 +17,9 @@ export default function SummaryStep({ context }: WizardStepProps<InstallFirmware
           ),
           title: "Firmware Installed Successfully!",
           message: (
-            <div>
-              <p className="text-gray-600 dark:text-gray-300 mb-2">
-                Your ZWA-2 device has been updated with the latest controller firmware.
-              </p>
-              {downloadedFirmwareName && (
-                <p className="text-sm text-gray-500 dark:text-gray-400">
-                  Installed: {downloadedFirmwareName}
-                </p>
-              )}
-            </div>
+            <p className="text-gray-600 dark:text-gray-300">
+              Your ZWA-2 has been updated with the latest controller firmware.
+            </p>
           )
         };
 

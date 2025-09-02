@@ -17,6 +17,8 @@ export interface InstallFirmwareState {
 	flashResult: "success" | "error" | null;
 	errorMessage: string;
 	downloadedFirmwareName: string | null;
+	currentSubStep: number;
+	isDownloading: boolean;
 }
 
 async function handleInstallStepEntry(context: WizardContext<InstallFirmwareState>): Promise<void> {
@@ -56,6 +58,8 @@ async function handleInstallStepEntry(context: WizardContext<InstallFirmwareStat
 			progress: 0,
 			flashResult: null,
 			errorMessage: "",
+			currentSubStep: 0,
+			isDownloading: true,
 		}));
 
 		// Set up progress callback
@@ -72,7 +76,12 @@ async function handleInstallStepEntry(context: WizardContext<InstallFirmwareStat
 				const downloaded = await downloadLatestFirmware();
 				fileName = downloaded.fileName;
 				firmwareData = downloaded.data;
-				context.setState(prev => ({ ...prev, downloadedFirmwareName: fileName }));
+				context.setState(prev => ({
+					...prev,
+					downloadedFirmwareName: fileName,
+					currentSubStep: 1,
+					isDownloading: false,
+				}));
 			} catch (error) {
 				console.error("Failed to download latest firmware:", error);
 				context.setState(prev => ({
@@ -157,6 +166,8 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 		flashResult: null,
 		errorMessage: "",
 		downloadedFirmwareName: null,
+		currentSubStep: 0,
+		isDownloading: false,
 	}),
 	steps: [
 		{

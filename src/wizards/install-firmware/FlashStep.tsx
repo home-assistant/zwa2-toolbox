@@ -1,8 +1,9 @@
 import type { WizardStepProps } from '../../components/Wizard';
 import type { InstallFirmwareState } from './wizard';
+import CircularProgress from '../../components/CircularProgress';
 
 export default function FlashStep({ context }: WizardStepProps<InstallFirmwareState>) {
-  const { selectedFirmware, isFlashing, progress, flashResult, downloadedFirmwareName } = context.state;
+  const { isFlashing, progress, flashResult, downloadedFirmwareName, isDownloading } = context.state;
 
   if (flashResult !== null) {
     // Show completion state, but let the Summary step handle the actual result display
@@ -15,55 +16,45 @@ export default function FlashStep({ context }: WizardStepProps<InstallFirmwareSt
     );
   }
 
-  const getFirmwareDescription = () => {
-    if (!selectedFirmware) return "No firmware selected";
+  // Show indeterminate spinner if downloading or no firmware name yet
+  if (isDownloading || !downloadedFirmwareName) {
+    return (
+      <div className="text-center py-8">
+        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+          Install Firmware
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300">
+          {downloadedFirmwareName ? `Downloading ${downloadedFirmwareName}...` : 'Preparing to download firmware...'}
+        </p>
+      </div>
+    );
+  }
 
-    switch (selectedFirmware.type) {
-      case "latest-controller":
-        return "Latest controller firmware";
-      default:
-        return "Unknown firmware";
-    }
-  };
+  // Show circular progress during installation
+  if (isFlashing && !isDownloading) {
+    return (
+      <div className="text-center py-8">
+        <CircularProgress progress={progress} className="mb-4" />
+        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+          Install Firmware
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300">
+          Installing {downloadedFirmwareName}...
+        </p>
+      </div>
+    );
+  }
 
+  // Fallback state
   return (
-    <div className="py-8">
+    <div className="text-center py-8">
       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
         Install Firmware
       </h3>
-      <p className="text-gray-600 dark:text-gray-300 mb-6">
-        {getFirmwareDescription()}
+      <p className="text-gray-600 dark:text-gray-300">
+        Ready to install firmware...
       </p>
-
-      {downloadedFirmwareName && (
-        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
-          Downloaded: {downloadedFirmwareName}
-        </p>
-      )}
-
-      {isFlashing && (
-        <div className="mb-6">
-          <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
-            <span>Progress</span>
-            <span>{Math.round(progress)}%</span>
-          </div>
-          <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
-            <div
-              className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
-              style={{ width: `${progress}%` }}
-            />
-          </div>
-          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
-            {progress < 50 ? "Downloading firmware..." : "Installing firmware..."}
-          </p>
-        </div>
-      )}
-
-      {!isFlashing && flashResult === null && (
-        <p className="text-gray-600 dark:text-gray-300">
-          Installing firmware...
-        </p>
-      )}
     </div>
   );
 }
