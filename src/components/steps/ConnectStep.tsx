@@ -26,17 +26,14 @@ export default function ConnectStep<T>({ context }: WizardStepProps<T>) {
         )}
       </div>
       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-        {isConnected ? 'Connected to Serial Port' : 'Connect to ZWA-2'}
+        {isConnected ? 'ZWA-2 Connected' : 'Connect to ZWA-2'}
       </h3>
       <p className="text-gray-600 dark:text-gray-300 mb-6">
         {isConnected
-          ? 'Successfully connected to your ZWA-2 device via Web Serial.'
-          : 'First, we need to establish a connection to your ZWA-2 device via Web Serial.'
+          ? 'Successfully connected to your ZWA-2.'
+          : 'First, we need to establish a connection to your ZWA-2.'
         }
       </p>
-      {context.isConnecting && (
-        <p className="text-indigo-600 dark:text-indigo-400 mb-6">Connecting to serial port...</p>
-      )}
       {!isConnected && (
         <button
           onClick={context.onConnect}
@@ -48,10 +45,13 @@ export default function ConnectStep<T>({ context }: WizardStepProps<T>) {
       )}
       {isConnected && context.onDisconnect && (
         <button
-          onClick={context.onDisconnect}
+          onClick={() => {
+            context.onDisconnect?.();
+            context.onConnect();
+          }}
           className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
         >
-          Disconnect & Connect Different Device
+          Connect different device
         </button>
       )}
     </div>
