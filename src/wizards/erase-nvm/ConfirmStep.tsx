@@ -1,12 +1,8 @@
-import { useState } from 'react';
 import type { WizardStepProps } from '../../components/Wizard';
 import type { EraseNVMState } from './wizard';
 
 export default function ConfirmStep({ context }: WizardStepProps<EraseNVMState>) {
-  const [confirmed, setConfirmed] = useState(context.state.confirmed);
-
   const handleConfirmChange = (checked: boolean) => {
-    setConfirmed(checked);
     context.setState(prev => ({
       ...prev,
       confirmed: checked,
@@ -52,7 +48,7 @@ export default function ConfirmStep({ context }: WizardStepProps<EraseNVMState>)
         <input
           id="confirm-erase"
           type="checkbox"
-          checked={confirmed}
+          checked={context.state.confirmed}
           onChange={(e) => handleConfirmChange(e.target.checked)}
           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
         />

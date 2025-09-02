@@ -1,16 +1,14 @@
-import { useState, useRef } from 'react';
+import { useRef } from 'react';
 import Button from '../../components/Button';
 import type { WizardStepProps } from '../../components/Wizard';
 import type { UpdateFirmwareState } from './wizard';
 
 export default function FileSelectStep({ context }: WizardStepProps<UpdateFirmwareState>) {
-  const [selectedFile, setSelectedFile] = useState<File | null>(context.state.selectedFile);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (file) {
-      setSelectedFile(file);
       context.setState(prev => ({
         ...prev,
         selectedFile: file,
@@ -36,13 +34,13 @@ export default function FileSelectStep({ context }: WizardStepProps<UpdateFirmwa
           className="hidden"
         />
 
-        {selectedFile ? (
+        {context.state.selectedFile ? (
           <div>
             <p className="text-sm font-medium text-gray-900 dark:text-white">
-              Selected: {selectedFile.name}
+              Selected: {context.state.selectedFile.name}
             </p>
             <p className="text-xs text-gray-500 dark:text-gray-400 mt-1">
-              {(selectedFile.size / 1024).toFixed(1)} KB
+              {(context.state.selectedFile.size / 1024).toFixed(1)} KB
             </p>
             <Button
               variant="secondary"

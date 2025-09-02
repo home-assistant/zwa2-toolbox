@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { ZWavePortManager, ZWaveBinding } from "./lib/zwave";
+import { ZWavePortManager } from "./lib/zwave";
 import ActionCard from "./components/ActionCard";
 import ActionCardsGrid from "./components/ActionCardsGrid";
 import Breadcrumb from "./components/Breadcrumb";
@@ -16,6 +16,9 @@ import {
 import {
 	eraseNVMWizardConfig,
 } from "./wizards/erase-nvm";
+import {
+	recoverAdapterWizardConfig,
+} from "./wizards/recover-adapter";
 
 // All wizard configurations
 const allWizards = [
@@ -31,6 +34,10 @@ const allWizards = [
 		id: "erase" as const,
 		config: eraseNVMWizardConfig,
 	},
+	{
+		id: "recover" as const,
+		config: recoverAdapterWizardConfig,
+	},
 ] as const;
 
 interface ConnectionStatus {
@@ -41,47 +48,34 @@ interface ConnectionStatus {
 
 export default function App() {
 	const [serialPort, setSerialPort] = useState<SerialPort | null>(null);
-	const [zwaveBinding, setZwaveBinding] = useState<ZWaveBinding | null>(null);
 	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
 		connected: false,
 	});
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [activeWizard, setActiveWizard] = useState<WizardId | null>(null);
 
-	const handleConnect = async () => {
+	const handleConnect = async (): Promise<boolean> => {
 		setIsConnecting(true);
 		setConnectionStatus({ connected: false });
 
 		const port = await ZWavePortManager.requestPort();
 		if (port) {
-			const binding = new ZWaveBinding(port);
-			const success = await binding.initialize();
-
-			if (success) {
-				setSerialPort(port);
-				setZwaveBinding(binding);
-				setConnectionStatus({ connected: true, mode: "Connected" });
-			} else {
-				setConnectionStatus({
-					connected: false,
-					error: "Failed to initialize Z-Wave binding",
-				});
-			}
+			setSerialPort(port);
+			setConnectionStatus({ connected: true, mode: "Port Connected" });
+			setIsConnecting(false);
+			return true;
 		} else {
 			setConnectionStatus({
 				connected: false,
 				error: "Failed to connect to device",
 			});
+			setIsConnecting(false);
+			return false;
 		}
-		setIsConnecting(false);
 	};
 
 	const handleDisconnect = async () => {
 		try {
-			if (zwaveBinding) {
-				await zwaveBinding.disconnect();
-				setZwaveBinding(null);
-			}
 			if (serialPort) {
 				await serialPort.close();
 				setSerialPort(null);
@@ -99,7 +93,6 @@ export default function App() {
 
 	const createBaseWizardContext = (): BaseWizardContext => ({
 		serialPort,
-		zwaveBinding,
 		isConnected: connectionStatus.connected,
 		isConnecting,
 		onConnect: handleConnect,
@@ -163,7 +156,7 @@ export default function App() {
 				) : (
 					/* Action Cards */
 					<div className="mt-10">
-						<ActionCardsGrid columns={3}>
+						<ActionCardsGrid columns={wizards.length % 2 === 0 ? 2 : 3}>
 							{wizards.map((wizard) => (
 								<ActionCard
 									key={wizard.id}

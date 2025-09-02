@@ -1,21 +1,27 @@
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect, useMemo, useCallback } from 'react';
 import { Card, CardHeader, CardBody, CardFooter } from './Card';
 import ProgressSteps from './ProgressSteps';
 import Button from './Button';
 import type { ZWaveBinding } from '../lib/zwave';
+import { ZWaveBinding as ZWaveBindingClass } from '../lib/zwave';
 
 export interface BaseWizardContext {
   serialPort: SerialPort | null;
-  zwaveBinding: ZWaveBinding | null;
   isConnected: boolean;
   isConnecting: boolean;
-  onConnect: () => Promise<void>;
+  onConnect: () => Promise<boolean>;
   onDisconnect?: () => Promise<void>;
 }
 
 export interface WizardContext<T = unknown> extends BaseWizardContext {
   state: T;
   setState: (updater: T | ((prev: T) => T)) => void;
+  goToStep: (stepName: string) => void;
+  autoNavigateToNext: () => Promise<void>;
+  registerCleanup: (cleanup: () => Promise<void> | void) => void;
+  zwaveBinding: ZWaveBinding | null;
+  setZwaveBinding: (binding: ZWaveBinding | null) => void;
+  afterConnect: () => Promise<boolean>;
 }
 
 export interface NavigationButton<T = unknown> {
@@ -34,6 +40,8 @@ export interface WizardStepConfig<T = unknown> {
     cancel?: NavigationButton<T>;
   };
   blockBrowserNavigation?: (context: WizardContext<T>) => boolean;
+  onEnter?: (context: WizardContext<T>) => Promise<void> | void;
+  isFinal?: boolean;
 }
 
 export interface WizardStepProps<T = unknown> {
@@ -60,17 +68,98 @@ interface WizardProps<T = unknown> {
 export default function Wizard<T = unknown>({ config, baseContext, onClose }: WizardProps<T>) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [state, setState] = useState<T>(() => config.createInitialState());
+  const [cleanupHooks, setCleanupHooks] = useState<Array<() => Promise<void> | void>>([]);
+  const [zwaveBinding, setZwaveBinding] = useState<ZWaveBinding | null>(null);
 
   const currentStep = config.steps[currentStepIndex];
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === config.steps.length - 1;
+
+  const registerCleanup = (cleanup: () => Promise<void> | void) => {
+    setCleanupHooks(prev => [...prev, cleanup]);
+  };
+
+  const afterConnect = useCallback(async (): Promise<boolean> => {
+    if (!baseContext.serialPort) {
+      return false;
+    }
+
+    // Create ZWaveBinding if it doesn't exist
+    if (!zwaveBinding) {
+      const binding = new ZWaveBindingClass(baseContext.serialPort);
+      binding.onError = (error: string) => {
+        console.error('[ZWaveBinding Error]:', error);
+      };
+      setZwaveBinding(binding);
+      return true;
+    }
+
+    return true;
+  }, [baseContext.serialPort, zwaveBinding]);
+
+  const runCleanup = useCallback(async () => {
+    // Clean up ZWaveBinding if it exists
+    if (zwaveBinding) {
+      try {
+        await zwaveBinding.disconnect();
+        setZwaveBinding(null);
+      } catch (error) {
+        console.error('Error cleaning up ZWaveBinding:', error);
+      }
+    }
+
+    // Run registered cleanup hooks
+    for (const cleanup of cleanupHooks) {
+      try {
+        await cleanup();
+      } catch (error) {
+        console.error('Cleanup hook failed:', error);
+      }
+    }
+    setCleanupHooks([]);
+  }, [zwaveBinding, cleanupHooks]);
 
   // Create the full wizard context
   const context: WizardContext<T> = useMemo(() => ({
     ...baseContext,
     state,
     setState,
-  }), [baseContext, state]);
+    goToStep: (stepName: string) => {
+      const stepIndex = config.steps.findIndex(step => step.name === stepName);
+      if (stepIndex !== -1) {
+        setCurrentStepIndex(stepIndex);
+      }
+    },
+    autoNavigateToNext: async () => {
+      // This will be the same logic as handleNext but can be called programmatically
+      const nextButton = currentStep.navigationButtons?.next;
+
+      if (nextButton?.beforeNavigate) {
+        const result = await nextButton.beforeNavigate(context);
+        if (result === false) {
+          return; // Navigation cancelled
+        }
+        if (typeof result === 'number') {
+          // Navigate to specific step
+          setCurrentStepIndex(Math.max(0, Math.min(result, config.steps.length - 1)));
+          return;
+        }
+      }
+
+      // Default navigation - go to next step
+      if (currentStepIndex < config.steps.length - 1) {
+        setCurrentStepIndex(currentStepIndex + 1);
+      } else {
+        // Finish wizard - run cleanup first
+        await runCleanup();
+        onClose?.();
+      }
+    },
+    registerCleanup,
+    zwaveBinding,
+    setZwaveBinding,
+    afterConnect,
+  }), [baseContext, state, config.steps, zwaveBinding, afterConnect, currentStep.navigationButtons?.next, currentStepIndex, onClose, runCleanup]);
 
   // Convert steps to the format expected by ProgressSteps
   const progressSteps = useMemo(() =>
@@ -98,6 +187,42 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
     }
   }, [shouldBlockNavigation]);
 
+  // Run cleanup on unmount
+  useEffect(() => {
+    return () => {
+      // Clean up ZWaveBinding synchronously on unmount
+      if (zwaveBinding) {
+        const cleanup = zwaveBinding.disconnect();
+        if (cleanup && typeof cleanup.then === 'function') {
+          cleanup.catch(error => console.error('ZWaveBinding cleanup failed on unmount:', error));
+        }
+      }
+
+      // Run cleanup hooks synchronously on unmount (don't await)
+      cleanupHooks.forEach(cleanup => {
+        try {
+          const result = cleanup();
+          if (result && typeof result.then === 'function') {
+            result.catch(error => console.error('Cleanup hook failed on unmount:', error));
+          }
+        } catch (error) {
+          console.error('Cleanup hook failed on unmount:', error);
+        }
+      });
+    };
+  }, [cleanupHooks, zwaveBinding]);
+
+  // Handle step entry actions
+  useEffect(() => {
+    const handleStepEntry = async () => {
+      if (currentStep.onEnter) {
+        await currentStep.onEnter(context);
+      }
+    };
+
+    handleStepEntry();
+  }, [currentStepIndex, currentStep, context]);
+
   const handleNext = async () => {
     const nextButton = currentStep.navigationButtons?.next;
 
@@ -117,7 +242,8 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
     if (!isLastStep) {
       setCurrentStepIndex(currentStepIndex + 1);
     } else {
-      // Finish wizard
+      // Finish wizard - run cleanup first
+      await runCleanup();
       onClose?.();
     }
   };
@@ -153,17 +279,12 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
       }
     }
 
+    // Cancel wizard - run cleanup first
+    await runCleanup();
     onClose?.();
   };
 
-  const handleStepClick = (stepId: string) => {
-    if (shouldBlockNavigation) return;
-
-    const stepIndex = parseInt(stepId.replace('step-', ''));
-    if (!isNaN(stepIndex) && stepIndex >= 0 && stepIndex < config.steps.length) {
-      setCurrentStepIndex(stepIndex);
-    }
-  };
+  // Remove navigation via wizard title progress altogether - no longer needed
 
   // Render current step component
   const StepComponent = currentStep.component;
@@ -174,8 +295,8 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
   const cancelButton = currentStep.navigationButtons?.cancel;
 
   const showNext = nextButton !== undefined;
-  const showBack = !isFirstStep && (backButton !== undefined || currentStep.navigationButtons?.back !== null);
-  const showCancel = cancelButton !== undefined;
+  const showBack = !isFirstStep && backButton !== undefined && !currentStep.isFinal;
+  const showCancel = cancelButton !== undefined && !currentStep.isFinal;
 
   const nextDisabled = nextButton?.disabled?.(context) ?? false;
   const backDisabled = backButton?.disabled?.(context) ?? false;
@@ -197,7 +318,6 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
         <ProgressSteps
           steps={progressSteps}
           currentStepIndex={currentStepIndex}
-          onStepClick={shouldBlockNavigation ? undefined : handleStepClick}
         />
       </CardHeader>
 

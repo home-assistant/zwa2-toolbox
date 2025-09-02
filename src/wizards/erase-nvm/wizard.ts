@@ -14,23 +14,23 @@ export interface EraseNVMState {
 	errorMessage: string;
 }
 
-async function handleConnectNavigation(context: WizardContext<EraseNVMState>) {
-	if (!context.isConnected) {
-		await context.onConnect();
-		return false; // Don't advance step immediately, let connection success advance it
-	}
-	return true;
-}
-
-async function handleEraseNavigation(context: WizardContext<EraseNVMState>) {
+async function handleEraseStepEntry(context: WizardContext<EraseNVMState>) {
 	const { isErasing } = context.state;
 
-	if (isErasing) {
-		return false; // Don't allow navigation while erasing
+	// Don't start if already erasing or if there's already a result
+	if (isErasing || context.state.eraseResult !== null) {
+		return;
 	}
 
-	if (!context.zwaveBinding) {
-		return false;
+	// Initialize the ZWave driver
+	if (!context.zwaveBinding || !(await context.zwaveBinding.initialize())) {
+		context.setState((prev) => ({
+			...prev,
+			eraseResult: "error",
+			errorMessage: "Failed to initialize Z-Wave driver",
+		}));
+		context.goToStep("Summary");
+		return;
 	}
 
 	try {
@@ -63,7 +63,8 @@ async function handleEraseNavigation(context: WizardContext<EraseNVMState>) {
 					eraseResult: "error",
 					errorMessage: "Failed to reset to bootloader",
 				}));
-				return 1; // Navigate to next step to show result
+				context.goToStep("Summary");
+				return;
 			}
 			context.setState((prev) => ({ ...prev, currentSubStep: 2 }));
 		}
@@ -77,7 +78,8 @@ async function handleEraseNavigation(context: WizardContext<EraseNVMState>) {
 				eraseResult: "error",
 				errorMessage: "Failed to erase NVM",
 			}));
-			return 1; // Navigate to next step to show result
+			context.goToStep("Summary");
+			return;
 		}
 
 		context.setState((prev) => ({ ...prev, currentSubStep: 3 }));
@@ -103,7 +105,8 @@ async function handleEraseNavigation(context: WizardContext<EraseNVMState>) {
 			}));
 		}
 
-		return 1; // Navigate to next step to show result
+		// Navigate to Summary step immediately after completion
+		context.goToStep("Summary");
 	} catch (error) {
 		context.setState((prev) => ({
 			...prev,
@@ -111,7 +114,9 @@ async function handleEraseNavigation(context: WizardContext<EraseNVMState>) {
 			eraseResult: "error",
 			errorMessage: `Unexpected error: ${error}`,
 		}));
-		return 1; // Navigate to next step to show result
+
+		// Navigate to Summary step immediately after error
+		context.goToStep("Summary");
 	}
 }
 
@@ -136,10 +141,11 @@ export const eraseNVMWizardConfig: WizardConfig<EraseNVMState> = {
 			component: ConnectStep<EraseNVMState>,
 			navigationButtons: {
 				next: {
-					label: (context) =>
-						context.isConnected ? "Next" : "Connect",
-					beforeNavigate: handleConnectNavigation,
-					disabled: (context) => context.isConnecting,
+					label: "Next",
+					disabled: (context) => !context.serialPort || context.isConnecting,
+					beforeNavigate: async (context) => {
+						return await context.afterConnect();
+					},
 				},
 				cancel: {
 					label: "Cancel",
@@ -165,31 +171,13 @@ export const eraseNVMWizardConfig: WizardConfig<EraseNVMState> = {
 		{
 			name: "Erase",
 			component: EraseStep,
-			navigationButtons: {
-				next: {
-					label: (context) => {
-						if (context.state.isErasing) return "Erasing...";
-						return "Erase";
-					},
-					beforeNavigate: handleEraseNavigation,
-					disabled: (context) => {
-						return !context.zwaveBinding || context.state.isErasing;
-					},
-				},
-				back: {
-					label: "Back",
-					disabled: (context) => context.state.isErasing,
-				},
-				cancel: {
-					label: "Cancel",
-					disabled: (context) => context.state.isErasing,
-				},
-			},
+			onEnter: handleEraseStepEntry,
 			blockBrowserNavigation: (context) => context.state.isErasing,
 		},
 		{
 			name: "Summary",
 			component: SummaryStep,
+			isFinal: true,
 			navigationButtons: {
 				next: {
 					label: "Finish",

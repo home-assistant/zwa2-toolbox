@@ -11,16 +11,6 @@ export interface InstallFirmwareState {
 	isComplete: boolean;
 }
 
-async function handleConnectNavigation(
-	context: WizardContext<InstallFirmwareState>,
-): Promise<boolean> {
-	if (!context.isConnected) {
-		await context.onConnect();
-		return false; // Don't advance step immediately, let connection success advance it
-	}
-	return true;
-}
-
 async function handleInstallNavigation(
 	context: WizardContext<InstallFirmwareState>,
 ): Promise<boolean> {
@@ -32,6 +22,11 @@ async function handleInstallNavigation(
 
 	if (isFlashing) {
 		return false; // Don't allow navigation while flashing
+	}
+
+	// Initialize the ZWave driver
+	if (!context.zwaveBinding || !(await context.zwaveBinding.initialize())) {
+		return false;
 	}
 
 	// Start the installation process
@@ -103,10 +98,11 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 			component: ConnectStep<InstallFirmwareState>,
 			navigationButtons: {
 				next: {
-					label: (context) =>
-						context.isConnected ? "Next" : "Connect",
-					beforeNavigate: handleConnectNavigation,
-					disabled: (context) => context.isConnecting,
+					label: "Next",
+					disabled: (context) => !context.serialPort || context.isConnecting,
+					beforeNavigate: async (context) => {
+						return await context.afterConnect();
+					},
 				},
 				cancel: {
 					label: "Cancel",
@@ -145,7 +141,6 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 						const { isComplete, selectedFile, isFlashing } =
 							context.state;
 						return (
-							!context.zwaveBinding ||
 							(!isComplete && !selectedFile) ||
 							isFlashing
 						);
@@ -153,11 +148,11 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 				},
 				back: {
 					label: "Back",
-					disabled: (context) => context.state.isFlashing,
+					disabled: (context) => context.state.isFlashing || context.state.isComplete,
 				},
 				cancel: {
 					label: "Cancel",
-					disabled: (context) => context.state.isFlashing,
+					disabled: (context) => context.state.isFlashing || context.state.isComplete,
 				},
 			},
 			blockBrowserNavigation: (context) => context.state.isFlashing,

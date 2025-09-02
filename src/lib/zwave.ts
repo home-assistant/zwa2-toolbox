@@ -90,7 +90,7 @@ export class ZWaveBinding {
 		}
 
 		try {
-			const option = this.driver.bootloader.findOption((o) => o === "run application");
+			const option = this.driver.bootloader.findOption((o) => o === "run");
 			if (option === undefined) {
 				this.onError?.("Run application option not found");
 				return false;
@@ -309,9 +309,6 @@ export class ZWaveBinding {
 		if (this.driver) {
 			this.driver.removeAllListeners();
 			await this.driver.destroy().catch(() => {});
-		}
-		if (this.port) {
-			await this.port.close().catch(() => {});
 		}
 	}
 }

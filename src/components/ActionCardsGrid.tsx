@@ -14,7 +14,7 @@ export default function ActionCardsGrid({ children, columns = 3 }: ActionCardsGr
 
   return (
     <div className={classNames(
-      'divide-y divide-gray-200 overflow-hidden rounded-lg bg-gray-200 shadow-sm sm:grid sm:divide-y-0 sm:divide-x dark:divide-white/10 dark:bg-gray-900 dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-white/20',
+      'border-t border-l border-gray-200 overflow-hidden rounded-lg bg-gray-200 shadow-sm sm:grid dark:border-white/10 dark:bg-gray-900 dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-white/20',
       gridCols
     )}>
       {React.Children.map(children, (child, index) => {

@@ -36,6 +36,6 @@
 		"typescript": "^5.9.2",
 		"typescript-eslint": "^8.41.0",
 		"vite": "^7.1.3",
-		"zwave-js": "^15.12.0"
+		"zwave-js": "^15.12.1-0-pr-8132-42f5703"
 	}
 }
