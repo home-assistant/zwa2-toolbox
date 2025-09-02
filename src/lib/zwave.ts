@@ -90,24 +90,8 @@ export class ZWaveBinding {
 		}
 
 		try {
-			const option = this.driver.bootloader.findOption((o) => o === "run");
-			if (option === undefined) {
-				this.onError?.("Run application option not found");
-				return false;
-			}
-
-			await this.driver.bootloader.selectOption(option);
-
-			// Wait a bit for the application to start
-			await wait(2000);
-
-			// Try to reconnect in application mode
-			const success = await this.createDriver();
-			if (success && this.driver?.mode !== DriverMode.Bootloader) {
-				return true;
-			}
-
-			return false;
+			await this.driver.leaveBootloader();
+			return this.driver.mode !== DriverMode.Bootloader;
 		} catch (e) {
 			this.onError?.(`Failed to run application: ${getErrorMessage(e)}`);
 			return false;
@@ -218,19 +202,15 @@ export class ZWaveBinding {
 
 			const result = await this.driver.firmwareUpdateOTW(firmware.data);
 
-			if (result.success) {
-				// Recreate driver after successful flash
-				await this.createDriver();
-				return true;
-			} else {
+			if (!result.success) {
 				this.onError?.(
 					`Failed to flash firmware: ${getEnumMemberName(
 						OTWFirmwareUpdateStatus,
 						result.status,
 					)}`,
 				);
-				return false;
 			}
+			return result.success;
 		} catch (e) {
 			this.onError?.(`Failed to flash firmware: ${getErrorMessage(e)}`);
 			return false;

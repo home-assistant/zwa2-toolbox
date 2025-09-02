@@ -122,12 +122,18 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 					finalResult: { tag: "RECOVERY_FAILED" }
 				}));
 			}
+
+			// Automatically navigate to summary after successful recovery
+			context.goToStep("Summary");
 		} else {
 			context.setState(prev => ({
 				...prev,
 				isRecovering: false,
 				finalResult: { tag: "RECOVERY_FAILED" }
 			}));
+
+			// Also navigate to summary on failure to show the error
+			context.goToStep("Summary");
 		}
 
 		return success;
@@ -138,6 +144,9 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 			isRecovering: false,
 			finalResult: { tag: "RECOVERY_FAILED" }
 		}));
+
+		// Navigate to summary to show the error
+		context.goToStep("Summary");
 		return false;
 	}
 }
@@ -277,10 +286,6 @@ export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 
 						return false;
 					},
-				},
-				back: {
-					label: "Back",
-					disabled: (context) => context.state.isRecovering,
 				},
 				cancel: {
 					label: "Cancel",
