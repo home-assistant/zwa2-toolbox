@@ -61,6 +61,8 @@ export class ZWaveBinding {
 
 		// Hardware reset into bootloader
 		await this.driver?.destroy();
+		// This invalidates our current serial binding, so we need to recreate it
+		this.serialBinding = createWebSerialPortFactory(this.port);
 
 		await this.port.setSignals({
 			dataTerminalReady: false,
@@ -131,7 +133,6 @@ export class ZWaveBinding {
 			await this.readyPromise;
 			return true;
 		} catch (e) {
-			console.error("Failed to start driver:", e);
 			this.onError?.(getErrorMessage(e));
 			return false;
 		}

@@ -14,6 +14,8 @@ export interface EraseNVMState {
 	errorMessage: string;
 }
 
+// FIXME: We should distinguish between erasing the NVM and simply factory resetting a Z-Wave controller (hard reset)
+
 async function handleEraseStepEntry(context: WizardContext<EraseNVMState>) {
 	const { isErasing } = context.state;
 
@@ -122,7 +124,7 @@ async function handleEraseStepEntry(context: WizardContext<EraseNVMState>) {
 
 export const eraseNVMWizardConfig: WizardConfig<EraseNVMState> = {
 	id: "erase",
-	title: "Erase NVM",
+	title: "Factory Reset",
 	description:
 		"Remove all Z-Wave network data from your device. This will reset the device to factory defaults.",
 	icon: TrashIcon,

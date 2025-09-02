@@ -2,34 +2,44 @@ import type { WizardStepProps } from '../../components/Wizard';
 import type { InstallFirmwareState } from './wizard';
 
 export default function FlashStep({ context }: WizardStepProps<InstallFirmwareState>) {
-  const { selectedFile, isFlashing, progress, isComplete } = context.state;
+  const { selectedFirmware, isFlashing, progress, flashResult, downloadedFirmwareName } = context.state;
 
-  if (isComplete) {
+  if (flashResult !== null) {
+    // Show completion state, but let the Summary step handle the actual result display
     return (
       <div className="text-center py-8">
-        <div className="text-green-600 dark:text-green-400 mb-4">
-          <svg className="w-16 h-16 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-            <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-          </svg>
+        <div className="text-gray-600 dark:text-gray-300">
+          <p>Installation process completed. Click "Next" to see the results.</p>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Firmware Installed Successfully!
-        </h3>
-        <p className="text-gray-600 dark:text-gray-300">
-          Your ZWA-2 device has been updated with the new firmware.
-        </p>
       </div>
     );
   }
 
+  const getFirmwareDescription = () => {
+    if (!selectedFirmware) return "No firmware selected";
+
+    switch (selectedFirmware.type) {
+      case "latest-controller":
+        return "Latest controller firmware";
+      default:
+        return "Unknown firmware";
+    }
+  };
+
   return (
     <div className="py-8">
       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-        Installing Firmware
+        Install Firmware
       </h3>
       <p className="text-gray-600 dark:text-gray-300 mb-6">
-        Installing firmware: {selectedFile?.name}
+        {getFirmwareDescription()}
       </p>
+
+      {downloadedFirmwareName && (
+        <p className="text-sm text-gray-500 dark:text-gray-400 mb-4">
+          Downloaded: {downloadedFirmwareName}
+        </p>
+      )}
 
       {isFlashing && (
         <div className="mb-6">
@@ -43,12 +53,15 @@ export default function FlashStep({ context }: WizardStepProps<InstallFirmwareSt
               style={{ width: `${progress}%` }}
             />
           </div>
+          <p className="text-sm text-gray-500 dark:text-gray-400 mt-2">
+            {progress < 50 ? "Downloading firmware..." : "Installing firmware..."}
+          </p>
         </div>
       )}
 
-      {!isFlashing && !isComplete && (
+      {!isFlashing && flashResult === null && (
         <p className="text-gray-600 dark:text-gray-300">
-          Ready to install firmware. Click "Install" to begin.
+          Installing firmware...
         </p>
       )}
     </div>

@@ -2,45 +2,60 @@ import { CloudArrowDownIcon } from "@heroicons/react/24/outline";
 import ConnectStep from "../../components/steps/ConnectStep";
 import FileSelectStep from "./FileSelectStep";
 import FlashStep from "./FlashStep";
+import SummaryStep from "./SummaryStep.tsx";
 import type { WizardConfig, WizardContext } from "../../components/Wizard";
-import { openFirmwareFile } from "../../lib/firmware-download";
+import { downloadLatestFirmware } from "../../lib/firmware-download";
+import { DriverMode } from "zwave-js";
+
+export type FirmwareOption =
+	| { type: "latest-controller" };
 
 export interface InstallFirmwareState {
-	selectedFile: File | null;
+	selectedFirmware: FirmwareOption | null;
 	isFlashing: boolean;
 	progress: number;
-	isComplete: boolean;
+	flashResult: "success" | "error" | null;
+	errorMessage: string;
+	downloadedFirmwareName: string | null;
 }
 
-async function handleInstallNavigation(
-	context: WizardContext<InstallFirmwareState>,
-): Promise<boolean> {
-	const { isComplete, isFlashing, selectedFile } = context.state;
+async function handleInstallStepEntry(context: WizardContext<InstallFirmwareState>): Promise<void> {
+	const { flashResult, isFlashing, selectedFirmware } = context.state;
 
-	if (isComplete) {
-		return true; // Allow finish
+	// Don't start if already flashing or if there's already a result
+	if (isFlashing || flashResult !== null) {
+		return;
 	}
 
-	if (isFlashing) {
-		return false; // Don't allow navigation while flashing
+	if (!selectedFirmware) {
+		context.setState((prev) => ({
+			...prev,
+			flashResult: "error",
+			errorMessage: "No firmware selected",
+		}));
+		context.goToStep("Summary");
+		return;
 	}
 
 	// Initialize the ZWave driver
 	if (!context.zwaveBinding || !(await context.zwaveBinding.initialize())) {
-		return false;
+		context.setState((prev) => ({
+			...prev,
+			flashResult: "error",
+			errorMessage: "Failed to initialize Z-Wave driver",
+		}));
+		context.goToStep("Summary");
+		return;
 	}
 
 	// Start the installation process
-	if (!selectedFile || !context.zwaveBinding) {
-		return false;
-	}
-
 	try {
 		context.setState((prev) => ({
 			...prev,
 			isFlashing: true,
 			progress: 0,
-			isComplete: false,
+			flashResult: null,
+			errorMessage: "",
 		}));
 
 		// Set up progress callback
@@ -48,37 +63,82 @@ async function handleInstallNavigation(
 			context.setState((prev) => ({ ...prev, progress }));
 		};
 
-		// Extract firmware from file
-		const { fileName, data } = await openFirmwareFile(selectedFile);
+		let fileName: string;
+		let firmwareData: Uint8Array;
 
-		const success = await context.zwaveBinding.flashFirmware(fileName, data);
-		if (success) {
-			context.setState((prev) => ({
+		// Download latest firmware based on selected option
+		if (selectedFirmware.type === "latest-controller") {
+			try {
+				const downloaded = await downloadLatestFirmware();
+				fileName = downloaded.fileName;
+				firmwareData = downloaded.data;
+				context.setState(prev => ({ ...prev, downloadedFirmwareName: fileName }));
+			} catch (error) {
+				console.error("Failed to download latest firmware:", error);
+				context.setState(prev => ({
+					...prev,
+					isFlashing: false,
+					flashResult: "error",
+					errorMessage: "Failed to download latest firmware",
+				}));
+				context.goToStep("Summary");
+				return;
+			}
+		} else {
+			context.setState(prev => ({
 				...prev,
 				isFlashing: false,
-				progress: 100,
-				isComplete: true,
+				flashResult: "error",
+				errorMessage: "Unknown firmware option selected",
 			}));
-			return false; // Don't auto-advance, let user click Finish
+			context.goToStep("Summary");
+			return;
+		}
+
+		// Flash the firmware
+		const success = await context.zwaveBinding.flashFirmware(fileName, firmwareData);
+
+		if (success) {
+			// Check if application started successfully
+			const mode = context.zwaveBinding.getDriverMode();
+			if (mode === DriverMode.SerialAPI) {
+				context.setState((prev) => ({
+					...prev,
+					isFlashing: false,
+					progress: 100,
+					flashResult: "success",
+					errorMessage: "",
+				}));
+			} else {
+				context.setState((prev) => ({
+					...prev,
+					isFlashing: false,
+					progress: 100,
+					flashResult: "error",
+					errorMessage: `Firmware installed but device is in ${mode || 'unknown'} mode instead of application mode`,
+				}));
+			}
 		} else {
-			// Reset state on failure so user can try again
 			context.setState((prev) => ({
 				...prev,
 				isFlashing: false,
 				progress: 0,
-				isComplete: false,
+				flashResult: "error",
+				errorMessage: "Failed to install firmware",
 			}));
-			return false;
 		}
+
+		// Always navigate to summary after flash attempt
+		context.goToStep("Summary");
 	} catch (error) {
-		console.error("Flash failed:", error);
 		context.setState((prev) => ({
 			...prev,
 			isFlashing: false,
 			progress: 0,
-			isComplete: false,
+			flashResult: "error",
+			errorMessage: `Unexpected error: ${error}`,
 		}));
-		return false;
+		context.goToStep("Summary");
 	}
 }
 
@@ -86,15 +146,17 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 	id: "install",
 	title: "Install Firmware",
 	description:
-		"Install new firmware on your ZWA-2 device. Choose from bootloader, application firmware, or complete firmware packages.",
+		"Install the latest controller firmware on your ZWA-2 device.",
 	icon: CloudArrowDownIcon,
 	iconForeground: "text-indigo-700 dark:text-indigo-400",
 	iconBackground: "bg-indigo-50 dark:bg-indigo-500/10",
 	createInitialState: () => ({
-		selectedFile: null,
+		selectedFirmware: null,
 		isFlashing: false,
 		progress: 0,
-		isComplete: false,
+		flashResult: null,
+		errorMessage: "",
+		downloadedFirmwareName: null,
 	}),
 	steps: [
 		{
@@ -114,12 +176,12 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 			},
 		},
 		{
-			name: "Select firmware",
+			name: "Choose firmware",
 			component: FileSelectStep,
 			navigationButtons: {
 				next: {
-					label: "Next",
-					disabled: (context) => !context.state.selectedFile,
+					label: "Install",
+					disabled: (context) => !context.state.selectedFirmware,
 				},
 				back: {
 					label: "Back",
@@ -130,36 +192,20 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 			},
 		},
 		{
-			name: "Install",
+			name: "Install firmware",
 			component: FlashStep,
+			onEnter: handleInstallStepEntry,
+			blockBrowserNavigation: (context) => context.state.isFlashing,
+		},
+		{
+			name: "Summary",
+			component: SummaryStep,
+			isFinal: true,
 			navigationButtons: {
 				next: {
-					label: (context) => {
-						const { isComplete, isFlashing } = context.state;
-						if (isComplete) return "Finish";
-						if (isFlashing) return "Installing...";
-						return "Install";
-					},
-					beforeNavigate: handleInstallNavigation,
-					disabled: (context) => {
-						const { isComplete, selectedFile, isFlashing } =
-							context.state;
-						return (
-							(!isComplete && !selectedFile) ||
-							isFlashing
-						);
-					},
-				},
-				back: {
-					label: "Back",
-					disabled: (context) => context.state.isFlashing || context.state.isComplete,
-				},
-				cancel: {
-					label: "Cancel",
-					disabled: (context) => context.state.isFlashing || context.state.isComplete,
+					label: "Finish",
 				},
 			},
-			blockBrowserNavigation: (context) => context.state.isFlashing,
 		},
 	],
 };

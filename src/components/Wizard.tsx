@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useMemo, useCallback, useState } from 'react';
 import { Card, CardHeader, CardBody, CardFooter } from './Card';
 import ProgressSteps from './ProgressSteps';
 import Button from './Button';
@@ -68,15 +68,17 @@ interface WizardProps<T = unknown> {
 export default function Wizard<T = unknown>({ config, baseContext, onClose }: WizardProps<T>) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [state, setState] = useState<T>(() => config.createInitialState());
-  const [cleanupHooks, setCleanupHooks] = useState<Array<() => Promise<void> | void>>([]);
-  const [zwaveBinding, setZwaveBinding] = useState<ZWaveBinding | null>(null);
+
+  // Use refs for zwaveBinding and cleanupHooks
+  const zwaveBindingRef = useRef<ZWaveBinding | null>(null);
+  const cleanupHooksRef = useRef<Array<() => Promise<void> | void>>([]);
 
   const currentStep = config.steps[currentStepIndex];
   const isFirstStep = currentStepIndex === 0;
   const isLastStep = currentStepIndex === config.steps.length - 1;
 
   const registerCleanup = (cleanup: () => Promise<void> | void) => {
-    setCleanupHooks(prev => [...prev, cleanup]);
+    cleanupHooksRef.current.push(cleanup);
   };
 
   const afterConnect = useCallback(async (): Promise<boolean> => {
@@ -85,39 +87,17 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
     }
 
     // Create ZWaveBinding if it doesn't exist
-    if (!zwaveBinding) {
+    if (!zwaveBindingRef.current) {
       const binding = new ZWaveBindingClass(baseContext.serialPort);
       binding.onError = (error: string) => {
         console.error('[ZWaveBinding Error]:', error);
       };
-      setZwaveBinding(binding);
+      zwaveBindingRef.current = binding;
       return true;
     }
 
     return true;
-  }, [baseContext.serialPort, zwaveBinding]);
-
-  const runCleanup = useCallback(async () => {
-    // Clean up ZWaveBinding if it exists
-    if (zwaveBinding) {
-      try {
-        await zwaveBinding.disconnect();
-        setZwaveBinding(null);
-      } catch (error) {
-        console.error('Error cleaning up ZWaveBinding:', error);
-      }
-    }
-
-    // Run registered cleanup hooks
-    for (const cleanup of cleanupHooks) {
-      try {
-        await cleanup();
-      } catch (error) {
-        console.error('Cleanup hook failed:', error);
-      }
-    }
-    setCleanupHooks([]);
-  }, [zwaveBinding, cleanupHooks]);
+  }, [baseContext.serialPort]);
 
   // Create the full wizard context
   const context: WizardContext<T> = useMemo(() => ({
@@ -131,7 +111,6 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
       }
     },
     autoNavigateToNext: async () => {
-      // This will be the same logic as handleNext but can be called programmatically
       const nextButton = currentStep.navigationButtons?.next;
 
       if (nextButton?.beforeNavigate) {
@@ -140,26 +119,24 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
           return; // Navigation cancelled
         }
         if (typeof result === 'number') {
-          // Navigate to specific step
           setCurrentStepIndex(Math.max(0, Math.min(result, config.steps.length - 1)));
           return;
         }
       }
 
-      // Default navigation - go to next step
       if (currentStepIndex < config.steps.length - 1) {
         setCurrentStepIndex(currentStepIndex + 1);
       } else {
-        // Finish wizard - run cleanup first
-        await runCleanup();
         onClose?.();
       }
     },
     registerCleanup,
-    zwaveBinding,
-    setZwaveBinding,
+    zwaveBinding: zwaveBindingRef.current,
+    setZwaveBinding: (binding) => {
+      zwaveBindingRef.current = binding;
+    },
     afterConnect,
-  }), [baseContext, state, config.steps, zwaveBinding, afterConnect, currentStep.navigationButtons?.next, currentStepIndex, onClose, runCleanup]);
+  }), [baseContext, state, config.steps, afterConnect, currentStep.navigationButtons?.next, currentStepIndex, onClose]);
 
   // Convert steps to the format expected by ProgressSteps
   const progressSteps = useMemo(() =>
@@ -190,16 +167,13 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
   // Run cleanup on unmount
   useEffect(() => {
     return () => {
-      // Clean up ZWaveBinding synchronously on unmount
-      if (zwaveBinding) {
-        const cleanup = zwaveBinding.disconnect();
+      if (zwaveBindingRef.current) {
+        const cleanup = zwaveBindingRef.current.disconnect();
         if (cleanup && typeof cleanup.then === 'function') {
           cleanup.catch(error => console.error('ZWaveBinding cleanup failed on unmount:', error));
         }
       }
-
-      // Run cleanup hooks synchronously on unmount (don't await)
-      cleanupHooks.forEach(cleanup => {
+      cleanupHooksRef.current.forEach((cleanup) => {
         try {
           const result = cleanup();
           if (result && typeof result.then === 'function') {
@@ -210,7 +184,7 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
         }
       });
     };
-  }, [cleanupHooks, zwaveBinding]);
+  }, []);
 
   // Handle step entry actions
   useEffect(() => {
@@ -242,8 +216,7 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
     if (!isLastStep) {
       setCurrentStepIndex(currentStepIndex + 1);
     } else {
-      // Finish wizard - run cleanup first
-      await runCleanup();
+      // Finish wizard - just close
       onClose?.();
     }
   };
@@ -279,8 +252,7 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
       }
     }
 
-    // Cancel wizard - run cleanup first
-    await runCleanup();
+    // Cancel wizard - just close
     onClose?.();
   };
 
