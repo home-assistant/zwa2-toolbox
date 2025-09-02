@@ -1,6 +1,6 @@
 # ZWA-2 Toolbox
 
-A web-based tool for interacting with the Home Assistant Connect ZWA-2 device at a low level via Web Serial API. This tool allows you to install firmware, update firmware, and erase NVM (Non-Volatile Memory) directly from your browser.
+A web-based tool for interacting with the Home Assistant Connect ZWA-2 at a low level via Web Serial API. This tool allows you to install firmware, update firmware, and erase NVM (Non-Volatile Memory) directly from your browser.
 
 ## Prerequisites
 

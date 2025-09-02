@@ -16,7 +16,7 @@ export default function FlashStep({ context }: WizardStepProps<UpdateFirmwareSta
           Firmware Updated Successfully!
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
-          Your ZWA-2 device has been updated to the latest firmware.
+          Your ZWA-2 has been updated to the latest firmware.
         </p>
       </div>
     );

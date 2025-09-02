@@ -26,7 +26,7 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
         Choose which firmware package to install
       </h3>
       <p className="text-gray-600 dark:text-gray-300 mb-6">
-        Select the firmware package you want to install on your ZWA-2 device.
+        Select the firmware package you want to install on your ZWA-2.
       </p>
 
       <div className="space-y-4">

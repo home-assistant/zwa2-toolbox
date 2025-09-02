@@ -89,7 +89,7 @@ export const updateFirmwareWizardConfig: WizardConfig<UpdateFirmwareState> = {
 	id: "update",
 	title: "Update Firmware",
 	description:
-		"Update your ZWA-2 device to the latest firmware version. Ensures compatibility and includes the latest features.",
+		"Update your ZWA-2 to the latest firmware version. Ensures compatibility and includes the latest features.",
 	icon: CloudArrowUpIcon,
 	iconForeground: "text-green-700 dark:text-green-400",
 	iconBackground: "bg-green-50 dark:bg-green-500/10",
