@@ -173,6 +173,7 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
           cleanup.catch(error => console.error('ZWaveBinding cleanup failed on unmount:', error));
         }
       }
+      // eslint-disable-next-line react-hooks/exhaustive-deps
       cleanupHooksRef.current.forEach((cleanup) => {
         try {
           const result = cleanup();
