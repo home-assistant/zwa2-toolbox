@@ -225,7 +225,7 @@ export async function diagnoseCorruptedFirmware(context: WizardContext<RecoverAd
 export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 	id: "recover",
 	title: "Recover Adapter",
-	description: "Attempt to recover a bricked ZWA-2 by identifying known issues and applying appropriate fixes.",
+	description: "Attempt to recover an unresponsive ZWA-2 by identifying known issues and applying appropriate fixes.",
 	icon: LifebuoyIcon,
 	iconForeground: "text-orange-700 dark:text-orange-400",
 	iconBackground: "bg-orange-50 dark:bg-orange-500/10",
