@@ -33,6 +33,39 @@
 
 ## Dependencies & APIs
 - Use Web Serial, zwave-js, and esptool-js for hardware interaction. Do not add new dependencies unless absolutely required.
+- Import from specific paths when possible (e.g., `@heroicons/react/24/outline` vs `@heroicons/react`).
+- Use established external libraries: Heroicons for icons, Headless UI for complex UI patterns, Tailwind CSS for styling.
+
+## File Organization & Imports
+- Follow the established folder structure: `components/`, `wizards/`, `lib/`, `steps/`.
+- Use barrel exports in `index.ts` files to re-export types and configurations from wizard modules.
+- Import types with explicit `type` keyword (e.g., `import type { WizardStepProps } from '../Wizard'`).
+- Group imports: React hooks first, then components, then types, then utilities.
+
+## React Patterns & Hooks Usage
+- Always use functional components with hooks, never class components.
+- Prefer `useCallback` for event handlers that are passed to child components or used in dependency arrays.
+- Use `useMemo` for expensive computations or complex object/array creation that should be memoized.
+- Use `useRef` for storing mutable values that don't trigger re-renders (like cleanup functions, binding instances).
+- Use `useEffect` for side effects, cleanup, and subscriptions. Always include proper dependency arrays.
+- When creating objects in useState initializers, use function form to avoid recreating on every render.
+
+## Component Patterns
+- Export components as default exports, with supporting types as named exports.
+- Use generic type parameters for reusable components (e.g., `<T>` for wizard step components).
+- Pass context objects rather than individual props for wizard-related components.
+- Implement cleanup patterns using refs and cleanup functions rather than direct state management.
+
+## Async Operations & Error Handling
+- Always handle async operations in try-catch blocks within async functions.
+- Use optional chaining (`?.`) and nullish coalescing (`??`) for safe property access.
+- Return boolean success indicators from async operations rather than throwing exceptions for expected failures.
+- Log errors to console with meaningful context before displaying user-friendly messages.
+
+## Browser API Integration
+- Always check for browser API availability before using (e.g., `"serial" in navigator`).
+- Handle browser navigation blocking during critical operations using `beforeunload` event listeners.
+- Use proper cleanup for event listeners and browser resources in useEffect cleanup functions.
 
 ## Testing
 - Do not write or update tests. The project requires real hardware for meaningful testing.
