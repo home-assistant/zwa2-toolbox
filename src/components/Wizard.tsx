@@ -9,7 +9,9 @@ export interface BaseWizardContext {
   serialPort: SerialPort | null;
   isConnected: boolean;
   isConnecting: boolean;
-  onConnect: () => Promise<boolean>;
+  connectionType: 'zwa2' | 'esp32' | null;
+  requestZWA2SerialPort: () => Promise<boolean>;
+  requestESP32SerialPort: () => Promise<boolean>;
   onDisconnect?: () => Promise<void>;
 }
 

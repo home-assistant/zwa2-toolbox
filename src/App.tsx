@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ZWavePortManager } from "./lib/zwave";
+import { ESPPortManager } from "./lib/esp-utils";
 import ActionCard from "./components/ActionCard";
 import ActionCardsGrid from "./components/ActionCardsGrid";
 import Breadcrumb from "./components/Breadcrumb";
@@ -12,6 +13,7 @@ interface ConnectionStatus {
 	connected: boolean;
 	mode?: string;
 	error?: string;
+	type?: 'zwa2' | 'esp32' | null;
 }
 
 export default function App() {
@@ -22,14 +24,30 @@ export default function App() {
 	const [isConnecting, setIsConnecting] = useState(false);
 	const [activeWizard, setActiveWizard] = useState<WizardId | null>(null);
 
-	const handleConnect = async (): Promise<boolean> => {
+	const handleDisconnect = async () => {
+		try {
+			if (serialPort?.connected && serialPort.readable) {
+				await serialPort.close();
+			}
+			setSerialPort(null);
+		} catch (error) {
+			console.error("Error during disconnect:", error);
+		} finally {
+			setConnectionStatus({ connected: false, type: null });
+		}
+	};
+
+	const requestZWA2SerialPort = async (): Promise<boolean> => {
 		setIsConnecting(true);
 		setConnectionStatus({ connected: false });
+
+		// Close any pre-existing connection first
+		await handleDisconnect();
 
 		const port = await ZWavePortManager.requestPort();
 		if (port) {
 			setSerialPort(port);
-			setConnectionStatus({ connected: true, mode: "Port Connected" });
+			setConnectionStatus({ connected: true, mode: "Port Connected", type: "zwa2" });
 			setIsConnecting(false);
 			return true;
 		} else {
@@ -42,16 +60,30 @@ export default function App() {
 		}
 	};
 
-	const handleDisconnect = async () => {
-		try {
-			if (serialPort) {
-				await serialPort.close();
-				setSerialPort(null);
-			}
-		} catch (error) {
-			console.error("Error during disconnect:", error);
-		} finally {
-			setConnectionStatus({ connected: false });
+	const requestESP32SerialPort = async (): Promise<boolean> => {
+		setIsConnecting(true);
+		setConnectionStatus({ connected: false });
+
+		// Close any pre-existing connection first
+		await handleDisconnect();
+
+		const port = await ESPPortManager.requestPort();
+		if (port) {
+			setSerialPort(port);
+			setConnectionStatus({
+				connected: true,
+				mode: "ESP32 Port Connected",
+				type: "esp32",
+			});
+			setIsConnecting(false);
+			return true;
+		} else {
+			setConnectionStatus({
+				connected: false,
+				error: "Failed to connect to ESP32 device",
+			});
+			setIsConnecting(false);
+			return false;
 		}
 	};
 
@@ -63,7 +95,9 @@ export default function App() {
 		serialPort,
 		isConnected: connectionStatus.connected,
 		isConnecting,
-		onConnect: handleConnect,
+		connectionType: connectionStatus.type || null,
+		requestZWA2SerialPort,
+		requestESP32SerialPort,
 		onDisconnect: handleDisconnect,
 	});
 
