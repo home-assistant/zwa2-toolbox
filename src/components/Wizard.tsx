@@ -5,11 +5,13 @@ import Button from './Button';
 import type { ZWaveBinding } from '../lib/zwave';
 import { ZWaveBinding as ZWaveBindingClass } from '../lib/zwave';
 
+export type ConnectionState = 
+  | { status: 'disconnected' }
+  | { status: 'connecting'; type: 'zwa2' | 'esp32' }
+  | { status: 'connected'; port: SerialPort; type: 'zwa2' | 'esp32' };
+
 export interface BaseWizardContext {
-  serialPort: SerialPort | null;
-  isConnected: boolean;
-  isConnecting: boolean;
-  connectionType: 'zwa2' | 'esp32' | null;
+  connectionState: ConnectionState;
   requestZWA2SerialPort: () => Promise<boolean>;
   requestESP32SerialPort: () => Promise<boolean>;
   onDisconnect?: () => Promise<void>;
@@ -84,13 +86,14 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
   };
 
   const afterConnect = useCallback(async (): Promise<boolean> => {
-    if (!baseContext.serialPort) {
+    const serialPort = baseContext.connectionState.status === 'connected' ? baseContext.connectionState.port : null;
+    if (!serialPort) {
       return false;
     }
 
     // Create ZWaveBinding if it doesn't exist
     if (!zwaveBindingRef.current) {
-      const binding = new ZWaveBindingClass(baseContext.serialPort);
+      const binding = new ZWaveBindingClass(serialPort);
       binding.onError = (error: string) => {
         console.error('[ZWaveBinding Error]:', error);
       };
@@ -99,7 +102,7 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
     }
 
     return true;
-  }, [baseContext.serialPort]);
+  }, [baseContext.connectionState]);
 
   // Create the full wizard context
   const context: WizardContext<T> = useMemo(() => ({

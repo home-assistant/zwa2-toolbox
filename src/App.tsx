@@ -6,83 +6,55 @@ import ActionCardsGrid from "./components/ActionCardsGrid";
 import Breadcrumb from "./components/Breadcrumb";
 import WebSerialWarning from "./components/WebSerialWarning";
 import Wizard from "./components/Wizard";
-import type { BaseWizardContext } from "./components/Wizard";
+import type { BaseWizardContext, ConnectionState } from "./components/Wizard";
 import { wizards, type WizardId } from "./wizards";
 
-interface ConnectionStatus {
-	connected: boolean;
-	mode?: string;
-	error?: string;
-	type?: 'zwa2' | 'esp32' | null;
-}
-
 export default function App() {
-	const [serialPort, setSerialPort] = useState<SerialPort | null>(null);
-	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
-		connected: false,
+	const [connectionState, setConnectionState] = useState<ConnectionState>({
+		status: 'disconnected',
 	});
-	const [isConnecting, setIsConnecting] = useState(false);
 	const [activeWizard, setActiveWizard] = useState<WizardId | null>(null);
 
 	const handleDisconnect = async () => {
 		try {
-			if (serialPort?.connected && serialPort.readable) {
-				await serialPort.close();
+			if (connectionState.status === 'connected' && connectionState.port.connected && connectionState.port.readable) {
+				await connectionState.port.close();
 			}
-			setSerialPort(null);
 		} catch (error) {
 			console.error("Error during disconnect:", error);
 		} finally {
-			setConnectionStatus({ connected: false, type: null });
+			setConnectionState({ status: 'disconnected' });
 		}
 	};
 
 	const requestZWA2SerialPort = async (): Promise<boolean> => {
-		setIsConnecting(true);
-		setConnectionStatus({ connected: false });
+		setConnectionState({ status: 'connecting', type: 'zwa2' });
 
 		// Close any pre-existing connection first
 		await handleDisconnect();
 
 		const port = await ZWavePortManager.requestPort();
 		if (port) {
-			setSerialPort(port);
-			setConnectionStatus({ connected: true, mode: "Port Connected", type: "zwa2" });
-			setIsConnecting(false);
+			setConnectionState({ status: 'connected', port, type: 'zwa2' });
 			return true;
 		} else {
-			setConnectionStatus({
-				connected: false,
-				error: "Failed to connect to device",
-			});
-			setIsConnecting(false);
+			setConnectionState({ status: 'disconnected' });
 			return false;
 		}
 	};
 
 	const requestESP32SerialPort = async (): Promise<boolean> => {
-		setIsConnecting(true);
-		setConnectionStatus({ connected: false });
+		setConnectionState({ status: 'connecting', type: 'esp32' });
 
 		// Close any pre-existing connection first
 		await handleDisconnect();
 
 		const port = await ESPPortManager.requestPort();
 		if (port) {
-			setSerialPort(port);
-			setConnectionStatus({
-				connected: true,
-				mode: "ESP32 Port Connected",
-				type: "esp32",
-			});
-			setIsConnecting(false);
+			setConnectionState({ status: 'connected', port, type: 'esp32' });
 			return true;
 		} else {
-			setConnectionStatus({
-				connected: false,
-				error: "Failed to connect to ESP32 device",
-			});
-			setIsConnecting(false);
+			setConnectionState({ status: 'disconnected' });
 			return false;
 		}
 	};
@@ -92,10 +64,7 @@ export default function App() {
 	};
 
 	const createBaseWizardContext = (): BaseWizardContext => ({
-		serialPort,
-		isConnected: connectionStatus.connected,
-		isConnecting,
-		connectionType: connectionStatus.type || null,
+		connectionState,
 		requestZWA2SerialPort,
 		requestESP32SerialPort,
 		onDisconnect: handleDisconnect,
@@ -125,7 +94,7 @@ export default function App() {
 						<Breadcrumb
 							items={breadcrumbItems}
 							onHomeClick={handleCloseWizard}
-							disabled={isConnecting}
+							disabled={connectionState.status === 'connecting'}
 						/>
 
 						<div className="mt-8">
@@ -160,9 +129,7 @@ export default function App() {
 				) : (
 					/* Action Cards */
 					<div className="mt-10">
-						<ActionCardsGrid
-							columns={wizards.length % 2 === 0 ? 2 : 3}
-						>
+						<ActionCardsGrid>
 							{wizards.map((wizard) => (
 								<ActionCard
 									key={wizard.id}

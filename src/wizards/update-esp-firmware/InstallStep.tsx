@@ -2,8 +2,9 @@ import type { WizardStepProps } from '../../components/Wizard';
 import type { UpdateESPFirmwareState } from './wizard';
 import { flashESPFirmware } from './wizard';
 import CircularProgress from '../../components/CircularProgress';
-import { LinkIcon, LinkSlashIcon, ExclamationTriangleIcon } from '@heroicons/react/24/outline';
+import { LinkIcon, LinkSlashIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef, useState } from 'react';
+import Alert from '../../components/Alert';
 
 export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
   const {
@@ -35,29 +36,23 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 
   // Continue with the actual firmware installation when espSerialPort becomes non-null and currentSubStep === 2
   useEffect(() => {
-	console.debug("[InstallStep] useEffect checking espSerialPort and currentSubStep", {
-	  prevEspSerialPort: prevEspSerialPort.current,
-	  currentEspSerialPort: context.serialPort,
-	  currentSubStep: context.state.currentSubStep
-	});
+    const currentEspSerialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;
     // Only trigger when espSerialPort transitions from null to non-null and currentSubStep === 2
-    if (!prevEspSerialPort.current && context.serialPort && context.connectionType === "esp32" && context.state.currentSubStep === 2) {
+    if (!prevEspSerialPort.current && currentEspSerialPort && context.connectionState.status === 'connected' && context.connectionState.type === "esp32" && context.state.currentSubStep === 2) {
       (async () => {
         try {
           await flashESPFirmware(context);
-          console.debug("[InstallStep] flashESPFirmware completed, going to Summary");
-          context.goToStep("Summary");
         } catch (error) {
-          console.error("[InstallStep] Failed to flash ESP firmware:", error);
+          console.error("Failed to flash ESP firmware:", error);
+        } finally {
           context.goToStep("Summary");
         }
       })();
     }
-    prevEspSerialPort.current = context.serialPort;
-  }, [context.serialPort, context.state.currentSubStep, context]);
+    prevEspSerialPort.current = currentEspSerialPort;
+  }, [context.connectionState, context.state.currentSubStep, context]);
 
   const handleRetry = async () => {
-    console.debug("[InstallStep] handleRetry called");
     setShowBootloaderHint(false);
     await handleESP32Connect();
   };
@@ -104,60 +99,59 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
   }
 
   // Show ESP32 connection UI when waiting for connection (currentSubStep 1)
-  const connectedToESP32 = !!context.serialPort && context.connectionType === 'esp32';
+  const connectedToESP32 = context.connectionState.status === 'connected' && context.connectionState.type === 'esp32';
   if (currentSubStep === 1 && !connectedToESP32) {
 
     return (
-      <div className="text-center py-8">
-        <div className={`mb-4 ${connectedToESP32 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-600'}`}>
+      <div className="flex flex-col items-center py-8 space-y-6">
+        <div className={`${connectedToESP32 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-600'}`}>
           {connectedToESP32 ? (
-            <LinkIcon className="w-16 h-16 mx-auto" />
+            <LinkIcon className="w-16 h-16" />
           ) : (
-            <LinkSlashIcon className="w-16 h-16 mx-auto" />
+            <LinkSlashIcon className="w-16 h-16" />
           )}
         </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          {connectedToESP32 ? 'ESP32 Connected' : 'Connect to ESP32 Bootloader'}
-        </h3>
-        <p className="text-gray-600 dark:text-gray-300 mb-6">
-          {connectedToESP32
-            ? 'Successfully connected to the ESP32 bootloader.'
-            : 'Bootloader mode activated. Now select the ESP32 serial port to continue with the firmware update.'
-          }
-        </p>
+        <div className="text-center">
+          <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+            {connectedToESP32 ? 'ESP32 Connected' : 'Connect to ESP32 Bootloader'}
+          </h3>
+          <p className="text-gray-600 dark:text-gray-300">
+            {connectedToESP32
+              ? 'Successfully connected to the ESP32 bootloader.'
+              : 'Bootloader mode activated. Now select the ESP32 serial port to continue with the firmware update.'
+            }
+          </p>
+        </div>
 
         {!connectedToESP32 && !showBootloaderHint && (
           <button
             onClick={handleESP32Connect}
-            disabled={context.isConnecting}
+            disabled={context.connectionState.status === 'connecting'}
             className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-purple-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-purple-500 dark:hover:bg-purple-400"
           >
-            {context.isConnecting ? 'Connecting...' : 'Select ESP32 Port'}
+            {context.connectionState.status === 'connecting' ? 'Connecting...' : 'Select ESP32 Port'}
           </button>
         )}
 
         {!connectedToESP32 && showBootloaderHint && (
-          <div className="space-y-4">
-            <div className="bg-orange-50 dark:bg-orange-900/20 border border-orange-200 dark:border-orange-800 rounded-lg p-4">
-              <div className="flex items-start">
-                <ExclamationTriangleIcon className="w-5 h-5 text-orange-600 dark:text-orange-400 mt-0.5 mr-3 flex-shrink-0" />
-                <div className="text-left">
-                  <h4 className="text-sm font-medium text-orange-800 dark:text-orange-200 mb-1">
-                    Connection Failed
-                  </h4>
-                  <p className="text-sm text-orange-700 dark:text-orange-300">
-                    Make sure your device is powered on with GPIO0 and GND pins bridged to enter bootloader mode, then try again.
-                  </p>
-                </div>
-              </div>
-            </div>
+          <div className="flex flex-col items-center space-y-4 max-w-md">
             <button
               onClick={handleRetry}
-              disabled={context.isConnecting}
+              disabled={context.connectionState.status === 'connecting'}
               className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-purple-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-purple-500 dark:hover:bg-purple-400"
             >
-              {context.isConnecting ? 'Connecting...' : 'Try Again'}
+              {context.connectionState.status === 'connecting' ? 'Connecting...' : 'Try Again'}
             </button>
+            <Alert title="Can't find the ESP32 device?">
+              <span className="block mb-2">You can also trigger the bootloader mode manually:</span>
+              <ol className="list-decimal pl-6 my-2 space-y-1">
+                <li>Unplug the ZWA-2 and open it up</li>
+                <li>On the top right of the PCB, under "ESP GPIO pins", bridge GPIO0 and GND with something conductive</li>
+                <li>Plug the ZWA-2 back in</li>
+                <li>Retry connecting</li>
+              </ol>
+              <span className="block mt-2">Don't forget to remove the bridge after flashing!</span>
+            </Alert>
           </div>
         )}
 

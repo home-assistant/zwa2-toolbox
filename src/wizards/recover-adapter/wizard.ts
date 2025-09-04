@@ -246,7 +246,7 @@ export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 			navigationButtons: {
 				next: {
 					label: "Next",
-					disabled: (context) => !context.serialPort || context.isConnecting,
+					disabled: (context) => context.connectionState.status !== 'connected',
 					beforeNavigate: async (context) => {
 						return await context.afterConnect();
 					},

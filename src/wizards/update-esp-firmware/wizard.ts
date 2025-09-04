@@ -99,7 +99,19 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 				isEnteringBootloader: true,
 			}));
 
-			const bootloaderSuccess = await enterESPBootloader(context.serialPort!);
+			const serialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;
+			if (!serialPort) {
+				context.setState(prev => ({
+					...prev,
+					isInstalling: false,
+					installResult: "error",
+					errorMessage: "No serial port connected",
+				}));
+				context.goToStep("Summary");
+				return;
+			}
+
+			const bootloaderSuccess = await enterESPBootloader(serialPort);
 			if (!bootloaderSuccess) {
 				context.setState(prev => ({
 					...prev,
@@ -148,7 +160,9 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 }
 
 export async function flashESPFirmware(context: WizardContext<UpdateESPFirmwareState>): Promise<void> {
-	const {serialPort, connectionType, state: { downloadedFirmwareData} } = context;
+	const { state: { downloadedFirmwareData } } = context;
+	const serialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;
+	const connectionType = context.connectionState.status !== 'disconnected' ? context.connectionState.type : null;
 
 	if (!downloadedFirmwareData || !serialPort || connectionType !== 'esp32') {
 		throw new Error("Missing firmware data or ESP serial port");
@@ -246,7 +260,7 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 			navigationButtons: {
 				next: {
 					label: "Next",
-					disabled: (context) => !context.serialPort || context.isConnecting,
+					disabled: (context) => context.connectionState.status !== 'connected',
 					beforeNavigate: async (context) => {
 						return await context.afterConnect();
 					},
