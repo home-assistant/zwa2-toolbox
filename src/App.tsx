@@ -126,9 +126,7 @@ export default function App() {
 				) : (
 					/* Action Cards */
 					<div className="mt-10">
-						<ActionCardsGrid
-							columns={wizards.length % 2 === 0 ? 2 : 3}
-						>
+						<ActionCardsGrid>
 							{wizards.map((wizard) => (
 								<ActionCard
 									key={wizard.id}
