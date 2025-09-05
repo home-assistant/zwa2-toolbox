@@ -55,9 +55,9 @@ export async function enterESPBootloader(
 					// Return true only if we've received the expected chunk.
 					const receivedChunk =
 						value && new TextDecoder().decode(value);
-						if (done || receivedChunk == undefined) return undefined;
-						if (!predicate(receivedChunk)) return undefined;
-						return receivedChunk;
+					if (done || receivedChunk == undefined) return undefined;
+					if (!predicate(receivedChunk)) return undefined;
+					return receivedChunk;
 				})
 				.catch(() => undefined);
 		};
@@ -65,13 +65,13 @@ export async function enterESPBootloader(
 		const cmdMenuPromise = awaitChunk((chunk) => chunk.startsWith("cmd>"));
 
 		// In the legacy implementation, the magic sequence already triggers the bootloader
-		const legacyResult = await Promise.race([
-			disconnectPromise.then(() => true),
+		const menuResult = await Promise.race([
+			disconnectPromise.then(() => "bootloader"),
 			// A positive result of the cmdMenuPromise means we've seen the cmd menu, so we did NOT enter bootloader yet
-			cmdMenuPromise.then((result) => !result),
-			wait(2000).then(() => false),
+			cmdMenuPromise.then((result) => (result ? "menu" : "bootloader")),
+			wait(2000).then(() => "timeout"),
 		]);
-		if (legacyResult) return "success";
+		if (menuResult === "bootloader") return "success";
 
 		// The newer implementation enters command mode instead.
 		// We'll retrieve the firmware info first,
@@ -86,30 +86,39 @@ export async function enterESPBootloader(
 			await writer.write(command);
 		};
 
-		const infoPromise = awaitChunk(() => true);
-		await writeCommand("I");
-		console.log("Sent 'I' to get firmware info");
-		const info = await infoPromise;
-		if (info) {
-			console.log("Received firmware info:", info);
+		// Only if we actually saw the menu prompt, check for firmware info
+		// Otherwise we are dealing with something that doesn't support it
+		if (menuResult === "menu") {
+			const infoPromise = awaitChunk(() => true);
+			await writeCommand("I");
+			console.log("Sent 'I' to get firmware info");
+			const info = await infoPromise;
+			if (info) {
+				console.log("Received firmware info:", info);
 
-			// Call the callback with version info if provided
-			if (checkFirmwareInfo) {
-				try {
-					const shouldContinue = await checkFirmwareInfo(info);
-					if (!shouldContinue) {
-						console.log("Firmware check callback returned false, indicating no update needed");
+				// Call the callback with version info if provided
+				if (checkFirmwareInfo) {
+					try {
+						const shouldContinue = await checkFirmwareInfo(info);
+						if (!shouldContinue) {
+							console.log(
+								"Firmware check callback returned false, indicating no update needed",
+							);
+							writer.releaseLock();
+							return "no-update-needed";
+						}
+					} catch (error) {
+						console.log(
+							"Firmware check callback threw an error, treating as no update needed:",
+							error,
+						);
 						writer.releaseLock();
 						return "no-update-needed";
 					}
-				} catch (error) {
-					console.log("Firmware check callback threw an error, treating as no update needed:", error);
-					writer.releaseLock();
-					return "no-update-needed";
 				}
+			} else {
+				console.warn("Did not receive version info");
 			}
-		} else {
-			console.warn("Did not receive version info");
 		}
 
 		await writeCommand("BE");
