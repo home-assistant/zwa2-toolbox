@@ -17,21 +17,31 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
     currentSubStep,
     selectedFirmware,
     latestESPFirmwareInfo,
+    bootloaderEntryFailed,
   } = context.state;
 
-  const [showBootloaderHint, setShowBootloaderHint] = useState(false);
+  const [showBootloaderHint, setShowBootloaderHint] = useState(bootloaderEntryFailed);
   const prevEspSerialPort = useRef<SerialPort | null>(null);
+
+  // Update showBootloaderHint when bootloaderEntryFailed changes
+  useEffect(() => {
+    if (bootloaderEntryFailed) {
+      setShowBootloaderHint(true);
+    }
+  }, [bootloaderEntryFailed]);
 
   const handleESP32Connect = async () => {
     const success = await context.requestESP32SerialPort();
     if (!success) {
       setShowBootloaderHint(true);
     } else {
-      // Only update state to move to substep 2, do not set espSerialPort here
+      // Clear the bootloader entry failed flag and hint on successful connection
+      setShowBootloaderHint(false);
       context.setState(prev => ({
         ...prev,
         currentSubStep: 2,
         isInstalling: true,
+        bootloaderEntryFailed: false,
       }));
     }
   };
@@ -55,7 +65,8 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
   }, [context.connectionState, context.state.currentSubStep, context]);
 
   const handleRetry = async () => {
-    setShowBootloaderHint(false);
+    // setShowBootloaderHint(false);
+    // Don't clear bootloaderEntryFailed flag here - it should remain true until successful connection
     await handleESP32Connect();
   };
 
@@ -120,8 +131,13 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
           <p className="text-gray-600 dark:text-gray-300">
             {connectedToESP32
               ? 'Successfully connected to the ESP32 bootloader.'
-              : 'Bootloader mode activated. Now select the ESP32 serial port to continue with the firmware update.'
+              : bootloaderEntryFailed
+                ? <>Could not enter the bootloader automatically.<br />You can also follow the instructions below to enter bootloader mode manually, then try again.</>
+                : <>Bootloader mode activated. Now select the ESP32 serial port to continue with the firmware update.</>
             }
+          </p>
+          <p className="text-gray-600 dark:text-gray-300">
+			The device is usually called "ESP32-S3" or "USB JTAG/serial debug unit".
           </p>
         </div>
 
@@ -142,10 +158,10 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
               disabled={context.connectionState.status === 'connecting'}
               className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-purple-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-purple-500 dark:hover:bg-purple-400"
             >
-              {context.connectionState.status === 'connecting' ? 'Connecting...' : 'Try Again'}
+              {context.connectionState.status === 'connecting' ? 'Connecting...' : bootloaderEntryFailed ? 'Select ESP32 Port' : 'Try Again'}
             </button>
-            <Alert title="Can't find the ESP32 device?">
-              <span className="block mb-2">You can also trigger the bootloader mode manually:</span>
+            <Alert title={bootloaderEntryFailed ? "To trigger the bootloader manually" : "Can't find the ESP32 device?"}>
+              {!bootloaderEntryFailed && <span className="block mb-2">You can also trigger the bootloader mode manually:</span>}
               <ol className="list-decimal pl-6 my-2 space-y-1">
                 <li>Unplug the ZWA-2 and open it up</li>
                 <li>On the top right of the PCB, under "ESP GPIO pins", bridge GPIO0 and GND with something conductive</li>
@@ -162,6 +178,11 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
             onClick={() => {
               context.onDisconnect?.();
               setShowBootloaderHint(false);
+              // Clear the bootloader entry failed flag when disconnecting
+              context.setState(prev => ({
+                ...prev,
+                bootloaderEntryFailed: false,
+              }));
             }}
             className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
           >

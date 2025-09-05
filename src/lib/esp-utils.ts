@@ -141,14 +141,17 @@ export async function enterESPBootloader(
 }
 
 export const ESP32_DEVICE_FILTERS = [
+	// VID/PID when triggering the bootloader through software
 	{ usbVendorId: 0x303a, usbProductId: 0x0009 },
+	// VID/PID when triggering the bootloader through hardware (GPIO0 to GND)
+	{ usbVendorId: 0x303a, usbProductId: 0x1001 },
 ];
 
 export class ESPPortManager {
 	static async requestPort(): Promise<SerialPort | null> {
 		try {
 			return await navigator.serial.requestPort({
-				filters: ESP32_DEVICE_FILTERS,
+				// filters: ESP32_DEVICE_FILTERS,
 			});
 			// The ESP serial port should not be opened automatically - esptool-js will handle that
 		} catch (e) {
