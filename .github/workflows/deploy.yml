@@ -33,8 +33,6 @@ jobs:
   # ===================
 
   build_pages:
-    # Only build pages on pushes to master (not pull requests)
-    if: github.event_name == 'push' && github.ref == 'refs/heads/master'
 
     runs-on: ubuntu-latest
     steps:
@@ -53,10 +51,13 @@ jobs:
       - name: Build
         run: npm run build
 
+      # Only build pages on pushes to master (not pull requests)
       - name: Setup Pages
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: actions/configure-pages@v5
 
       - name: Upload artifact
+        if: github.event_name == 'push' && github.ref == 'refs/heads/master'
         uses: actions/upload-pages-artifact@v3
         with:
           path: ./dist
