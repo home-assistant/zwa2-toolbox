@@ -151,7 +151,7 @@ export class ESPPortManager {
 	static async requestPort(): Promise<SerialPort | null> {
 		try {
 			return await navigator.serial.requestPort({
-				// filters: ESP32_DEVICE_FILTERS,
+				filters: ESP32_DEVICE_FILTERS,
 			});
 			// The ESP serial port should not be opened automatically - esptool-js will handle that
 		} catch (e) {
