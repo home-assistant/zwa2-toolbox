@@ -60,6 +60,7 @@ export interface UpdateESPFirmwareState {
 	latestESPFirmwareInfo: ESPFirmwareReleaseInfo | null;
 	isLoadingFirmwareInfo: boolean;
 	currentESPVersion: string | null;
+	bootloaderEntryFailed: boolean; // Track if automatic bootloader entry failed
 }
 
 async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareState>): Promise<void> {
@@ -174,21 +175,23 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 				: undefined;
 
 			const bootloaderResult = await enterESPBootloader(serialPort, versionCheckCallback);
-			
+
 			if (bootloaderResult === "no-update-needed") {
 				// Version check determined no update is needed, go to summary
 				console.log("No update needed, going to summary step");
 				context.goToStep("Summary");
 				return;
 			} else if (bootloaderResult === "failed") {
+				// Bootloader entry failed, but continue to ESP connection step with warning
+				console.log("Bootloader entry failed, showing manual entry instructions");
 				context.setState(prev => ({
 					...prev,
-					isInstalling: false,
-					installResult: "error",
-					errorMessage: "Failed to enter ESP bootloader mode",
+					isEnteringBootloader: false,
+					bootloaderEntryFailed: true,
 				}));
-				context.goToStep("Summary");
-				return;
+
+				// Update the context to reflect disconnection
+				await context.onDisconnect?.();
 			}
 
 			// ESP bootloader mode disconnects the original serial port
@@ -322,6 +325,7 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 		latestESPFirmwareInfo: null,
 		isLoadingFirmwareInfo: false,
 		currentESPVersion: null,
+		bootloaderEntryFailed: false,
 	}),
 	steps: [
 		{

@@ -141,7 +141,10 @@ export async function enterESPBootloader(
 }
 
 export const ESP32_DEVICE_FILTERS = [
+	// VID/PID when triggering the bootloader through software
 	{ usbVendorId: 0x303a, usbProductId: 0x0009 },
+	// VID/PID when triggering the bootloader through hardware (GPIO0 to GND)
+	{ usbVendorId: 0x303a, usbProductId: 0x1001 },
 ];
 
 export class ESPPortManager {
