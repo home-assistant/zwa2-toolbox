@@ -15,6 +15,8 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
     isDownloading,
     isEnteringBootloader,
     currentSubStep,
+    selectedFirmware,
+    latestESPFirmwareInfo,
   } = context.state;
 
   const [showBootloaderHint, setShowBootloaderHint] = useState(false);
@@ -179,7 +181,10 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
           Update ESP Firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
-          Installing {downloadedFirmwareName}...
+          Installing {selectedFirmware?.type === "latest-esp" && latestESPFirmwareInfo
+            ? `ESP firmware ${latestESPFirmwareInfo.version}`
+            : downloadedFirmwareName
+          }...
         </p>
       </div>
     );

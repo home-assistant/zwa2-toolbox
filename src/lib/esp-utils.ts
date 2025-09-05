@@ -7,15 +7,18 @@ import { wait } from "alcalzone-shared/async";
 
 const MAGIC_BAUDRATES = [150, 300, 600];
 
+export type BootloaderResult = "success" | "failed" | "no-update-needed";
+
 /**
  * Enters the ESP bootloader mode on the connected device
- * @param _serialPort The connected serial port (unused in placeholder implementation)
- * @returns Promise resolving to true if successful, false otherwise
+ * @param serialPort The connected serial port
+ * @param checkFirmwareInfo Optional callback called with firmware info before entering bootloader. Return false or throw to indicate no update needed.
+ * @returns Promise resolving to BootloaderResult indicating success, failure, or no update needed
  */
-// eslint-disable-next-line @typescript-eslint/no-unused-vars
 export async function enterESPBootloader(
 	serialPort: SerialPort,
-): Promise<boolean> {
+	checkFirmwareInfo?: (firmwareInfo: string) => Promise<boolean> | boolean,
+): Promise<BootloaderResult> {
 	const disconnectPromise = createDeferredPromise<void>();
 	function onDisconnect() {
 		console.log("Serial port disconnected, likely entered bootloader mode");
@@ -42,7 +45,7 @@ export async function enterESPBootloader(
 			console.error(
 				"Failed to get readable stream from serial port. Probably means we entered bootloader.",
 			);
-			return true;
+			return "success";
 		}
 
 		const awaitChunk = (predicate: (chunk: string) => boolean) => {
@@ -68,10 +71,10 @@ export async function enterESPBootloader(
 			cmdMenuPromise.then((result) => !result),
 			wait(2000).then(() => false),
 		]);
-		if (legacyResult) return true;
+		if (legacyResult) return "success";
 
 		// The newer implementation enters command mode instead.
-		// We'll retrieve the version info first (unused for now),
+		// We'll retrieve the firmware info first,
 		// and then send `BE` to enter the ESP bootloader
 		const writer = serialPort.writable?.getWriter();
 		if (!writer) {
@@ -85,10 +88,26 @@ export async function enterESPBootloader(
 
 		const infoPromise = awaitChunk(() => true);
 		await writeCommand("I");
-		console.log("Sent 'I' to get version info");
+		console.log("Sent 'I' to get firmware info");
 		const info = await infoPromise;
 		if (info) {
-			console.log("Received version info:", info);
+			console.log("Received firmware info:", info);
+
+			// Call the callback with version info if provided
+			if (checkFirmwareInfo) {
+				try {
+					const shouldContinue = await checkFirmwareInfo(info);
+					if (!shouldContinue) {
+						console.log("Firmware check callback returned false, indicating no update needed");
+						writer.releaseLock();
+						return "no-update-needed";
+					}
+				} catch (error) {
+					console.log("Firmware check callback threw an error, treating as no update needed:", error);
+					writer.releaseLock();
+					return "no-update-needed";
+				}
+			}
 		} else {
 			console.warn("Did not receive version info");
 		}
@@ -103,10 +122,10 @@ export async function enterESPBootloader(
 			disconnectPromise.then(() => true),
 			wait(5000).then(() => false),
 		]);
-		return result;
+		return result ? "success" : "failed";
 	} catch (error) {
 		console.error("Failed to enter ESP bootloader:", error);
-		return false;
+		return "failed";
 	} finally {
 		serialPort.removeEventListener("disconnect", onDisconnect);
 	}

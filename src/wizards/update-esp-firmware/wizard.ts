@@ -5,23 +5,61 @@ import InstallStep from "./InstallStep";
 import SummaryStep from "./SummaryStep";
 import type { WizardConfig, WizardContext } from "../../components/Wizard";
 import { enterESPBootloader } from "../../lib/esp-utils";
-import { downloadLatestESPFirmware } from "../../lib/esp-firmware-download";
+import { downloadLatestESPFirmware, type ESPFirmwareReleaseInfo } from "../../lib/esp-firmware-download";
 import { ESPLoader, Transport, type FlashOptions, type LoaderOptions } from "esptool-js";
 
+/**
+ * Simple version comparison for semantic versions (e.g., v2025.09.1)
+ * @param current The current version string
+ * @param latest The latest version string
+ * @returns true if latest is newer than current
+ */
+function isVersionNewer(current: string, latest: string): boolean {
+	// Remove 'v' prefix if present and normalize
+	const normalize = (v: string) => v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
+	const currentParts = normalize(current);
+	const latestParts = normalize(latest);
+
+	// Pad arrays to same length
+	const maxLength = Math.max(currentParts.length, latestParts.length);
+	while (currentParts.length < maxLength) currentParts.push(0);
+	while (latestParts.length < maxLength) latestParts.push(0);
+
+	for (let i = 0; i < maxLength; i++) {
+		if (latestParts[i] > currentParts[i]) return true;
+		if (latestParts[i] < currentParts[i]) return false;
+	}
+	return false; // They are equal
+}
+
+/**
+ * Parse ESP version info response to extract version
+ * @param versionInfo The raw version info string from ESP
+ * @returns Extracted version string or null if not found
+ */
+function parseESPVersion(versionInfo: string): string | null {
+	// Look for version patterns like "v2025.09.1", "2025.09.1", or "version 2025.09.1"
+	const versionMatch = versionInfo.match(/(?:version\s+)?v?(\d{4}\.\d{2}\.\d+)/i);
+	return versionMatch ? versionMatch[1] : null;
+}
+
 export type ESPFirmwareOption =
-	| { type: "latest-esp" };
+	| { type: "latest-esp"; version?: string };
 
 export interface UpdateESPFirmwareState {
 	selectedFirmware: ESPFirmwareOption | null;
 	isInstalling: boolean;
 	progress: number;
-	installResult: "success" | "error" | null;
+	installResult: "success" | "error" | "no-update-needed" | null;
 	errorMessage: string;
 	downloadedFirmwareName: string | null;
 	downloadedFirmwareData: Uint8Array | null;
 	currentSubStep: number; // 0: download, 1: enter bootloader & ESP32 connection, 2: install
 	isDownloading: boolean;
 	isEnteringBootloader: boolean;
+	latestESPFirmwareInfo: ESPFirmwareReleaseInfo | null;
+	isLoadingFirmwareInfo: boolean;
+	currentESPVersion: string | null;
 }
 
 async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareState>): Promise<void> {
@@ -111,8 +149,38 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 				return;
 			}
 
-			const bootloaderSuccess = await enterESPBootloader(serialPort);
-			if (!bootloaderSuccess) {
+			// Create version check callback for latest ESP firmware
+			const versionCheckCallback = selectedFirmware.type === "latest-esp"
+				? async (versionInfo: string): Promise<boolean> => {
+					const currentVersion = parseESPVersion(versionInfo);
+					context.setState(prev => ({ ...prev, currentESPVersion: currentVersion }));
+
+					if (currentVersion && context.state.latestESPFirmwareInfo) {
+						const needsUpdate = isVersionNewer(currentVersion, context.state.latestESPFirmwareInfo.version);
+						if (!needsUpdate) {
+							console.log(`ESP is already on latest version ${currentVersion}, no update needed`);
+							context.setState(prev => ({
+								...prev,
+								isInstalling: false,
+								installResult: "no-update-needed",
+								errorMessage: "",
+							}));
+							return false; // Signal no update needed
+						}
+						console.log(`ESP version ${currentVersion} is older than ${context.state.latestESPFirmwareInfo.version}, update needed`);
+					}
+					return true; // Continue with the update
+				}
+				: undefined;
+
+			const bootloaderResult = await enterESPBootloader(serialPort, versionCheckCallback);
+			
+			if (bootloaderResult === "no-update-needed") {
+				// Version check determined no update is needed, go to summary
+				console.log("No update needed, going to summary step");
+				context.goToStep("Summary");
+				return;
+			} else if (bootloaderResult === "failed") {
 				context.setState(prev => ({
 					...prev,
 					isInstalling: false,
@@ -251,7 +319,9 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 		currentSubStep: 0,
 		isDownloading: false,
 		isEnteringBootloader: false,
-		espSerialPort: null,
+		latestESPFirmwareInfo: null,
+		isLoadingFirmwareInfo: false,
+		currentESPVersion: null,
 	}),
 	steps: [
 		{
@@ -276,7 +346,8 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 			navigationButtons: {
 				next: {
 					label: "Install",
-					disabled: (context) => !context.state.selectedFirmware,
+					disabled: (context) => !context.state.selectedFirmware ||
+						(context.state.selectedFirmware?.type === "latest-esp" && context.state.isLoadingFirmwareInfo),
 				},
 				back: {
 					label: "Back",

@@ -1,8 +1,58 @@
+import { useCallback, useEffect, useState } from 'react';
+import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import type { WizardStepProps } from '../../components/Wizard';
 import type { UpdateESPFirmwareState, ESPFirmwareOption } from './wizard';
+import { fetchLatestESPFirmwareInfo } from '../../lib/esp-firmware-download';
+import Modal from '../../components/Modal';
 
 export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
-  const { selectedFirmware } = context.state;
+  const { selectedFirmware, latestESPFirmwareInfo, isLoadingFirmwareInfo } = context.state;
+  const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
+
+  // Fetch release info when component mounts
+  useEffect(() => {
+    if (!latestESPFirmwareInfo && !isLoadingFirmwareInfo) {
+      context.setState(prev => ({ ...prev, isLoadingFirmwareInfo: true }));
+
+      fetchLatestESPFirmwareInfo()
+        .then(info => {
+          context.setState(prev => ({
+            ...prev,
+            latestESPFirmwareInfo: info,
+            isLoadingFirmwareInfo: false,
+          }));
+        })
+        .catch(error => {
+          console.error('Failed to fetch ESP firmware info:', error);
+          context.setState(prev => ({
+            ...prev,
+            isLoadingFirmwareInfo: false,
+          }));
+        });
+    }
+  }, [context, latestESPFirmwareInfo, isLoadingFirmwareInfo]);
+
+  const handleOptionChange = useCallback((option: ESPFirmwareOption) => {
+    // When selecting the latest option, store the actual version
+    if (option.type === "latest-esp" && latestESPFirmwareInfo) {
+      option.version = latestESPFirmwareInfo.version;
+    }
+    context.setState(prev => ({ ...prev, selectedFirmware: option }));
+  }, [context, latestESPFirmwareInfo]);
+
+  const isSelected = useCallback((option: ESPFirmwareOption) => {
+    return selectedFirmware?.type === option.type;
+  }, [selectedFirmware]);
+
+  const openChangelogModal = useCallback((e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setIsChangelogModalOpen(true);
+  }, []);
+
+  const closeChangelogModal = useCallback(() => {
+    setIsChangelogModalOpen(false);
+  }, []);
 
   const firmwareOptions: Array<{ value: ESPFirmwareOption; label: string; description: string }> = [
     {
@@ -11,14 +61,6 @@ export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFir
       description: "Download and install the latest official ESP bridge firmware from GitHub"
     }
   ];
-
-  const handleOptionChange = (option: ESPFirmwareOption) => {
-    context.setState(prev => ({ ...prev, selectedFirmware: option }));
-  };
-
-  const isSelected = (option: ESPFirmwareOption) => {
-    return selectedFirmware?.type === option.type;
-  };
 
   return (
     <div className="py-8">
@@ -49,17 +91,61 @@ export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFir
                 className="h-4 w-4 text-purple-600 border-gray-300 focus:ring-purple-500 dark:border-gray-600 dark:bg-gray-700"
               />
             </div>
-            <div className="ml-3 text-sm">
-              <label className="font-medium text-gray-900 dark:text-white cursor-pointer">
-                {option.label}
-              </label>
-              <p className="text-gray-500 dark:text-gray-400">
+            <div className="ml-3 text-sm flex-1">
+              <div className="flex items-center gap-1 flex-wrap">
+                <label className="font-medium text-gray-900 dark:text-white cursor-pointer">
+                  {option.label}
+                </label>
+                {isLoadingFirmwareInfo && option.value.type === "latest-esp" && (
+                  <span className="text-gray-500 dark:text-gray-400">
+                    · Loading...
+                  </span>
+                )}
+                {latestESPFirmwareInfo && option.value.type === "latest-esp" && (
+                  <>
+                    <span className="text-gray-500 dark:text-gray-400">
+                      · {latestESPFirmwareInfo.version} ·
+                    </span>
+                    <button
+                      onClick={openChangelogModal}
+                      className="text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 underline"
+                    >
+                      changelog
+                    </button>
+                  </>
+                )}
+              </div>
+              <p className="text-gray-500 dark:text-gray-400 mt-1">
                 {option.description}
               </p>
             </div>
           </div>
         ))}
       </div>
+
+      {/* Changelog Modal */}
+      <Modal
+        isOpen={isChangelogModalOpen}
+        onClose={closeChangelogModal}
+        title={`Changelog · ${latestESPFirmwareInfo?.version || ''}`}
+        content={
+          <div className="max-h-96 overflow-y-auto">
+            <div className="whitespace-pre-wrap text-sm font-mono">
+              {latestESPFirmwareInfo?.changelog || 'No changelog available.'}
+            </div>
+          </div>
+        }
+        icon={InformationCircleIcon}
+        iconClassName="size-6 text-blue-600 dark:text-blue-400"
+        iconBackgroundClassName="bg-blue-100 dark:bg-blue-500/10"
+        primaryButton={{
+          label: "Dismiss",
+          onClick: closeChangelogModal,
+          className: "inline-flex w-full justify-center rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 sm:ml-3 sm:w-auto dark:bg-blue-500 dark:shadow-none dark:hover:bg-blue-400"
+        }}
+        showCloseButton={true}
+        closeOnBackdrop={true}
+      />
     </div>
   );
 }

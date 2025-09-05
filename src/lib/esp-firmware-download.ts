@@ -19,7 +19,49 @@ export class ESPFirmwareDownloadError extends Error {
 
 interface GitHubRelease {
 	tag_name: string;
+	body: string;
 	assets: GitHubAsset[];
+}
+
+export interface ESPFirmwareReleaseInfo {
+	version: string;
+	changelog: string;
+}
+
+/**
+ * Fetch the latest ESP firmware release information
+ * @returns Promise resolving to version and changelog information
+ * @throws ESPFirmwareDownloadError if fetch fails
+ */
+export async function fetchLatestESPFirmwareInfo(): Promise<ESPFirmwareReleaseInfo> {
+	try {
+		// Fetch the latest release information for ESP firmware
+		const releaseResponse = await fetch(
+			'https://api.github.com/repos/NabuCasa/zwave-esp-bridge/releases/latest'
+		);
+
+		if (!releaseResponse.ok) {
+			throw new ESPFirmwareDownloadError(
+				`Failed to fetch ESP release information: ${releaseResponse.status} ${releaseResponse.statusText}`
+			);
+		}
+
+		const release: GitHubRelease = await releaseResponse.json();
+
+		return {
+			version: release.tag_name,
+			changelog: release.body || 'No changelog available.',
+		};
+
+	} catch (error) {
+		if (error instanceof ESPFirmwareDownloadError) {
+			throw error;
+		}
+		throw new ESPFirmwareDownloadError(
+			`Unexpected error during ESP firmware info fetch: ${error instanceof Error ? error.message : String(error)}`,
+			error
+		);
+	}
 }
 
 interface GitHubAsset {
