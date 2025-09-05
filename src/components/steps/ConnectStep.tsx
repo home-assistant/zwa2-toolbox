@@ -3,18 +3,19 @@ import { useEffect, useRef } from 'react';
 import type { WizardStepProps } from '../Wizard';
 
 export default function ConnectStep<T>({ context }: WizardStepProps<T>) {
-  const isConnected = !!context.serialPort;
+  const isConnected = context.connectionState.status === 'connected';
+  const serialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;
 
   // Track previous serialPort value
-  const prevSerialPort = useRef<SerialPort | null>(context.serialPort);
+  const prevSerialPort = useRef<SerialPort | null>(serialPort);
 
   useEffect(() => {
     // Only trigger when serialPort transitions from null to non-null
-    if (!prevSerialPort.current && context.serialPort) {
+    if (!prevSerialPort.current && serialPort) {
       context.autoNavigateToNext();
     }
-    prevSerialPort.current = context.serialPort;
-  }, [context.serialPort, context])
+    prevSerialPort.current = serialPort;
+  }, [serialPort, context])
 
   return (
     <div className="text-center py-8">
@@ -32,18 +33,18 @@ export default function ConnectStep<T>({ context }: WizardStepProps<T>) {
       </p>
       {!isConnected && (
         <button
-          onClick={context.onConnect}
-          disabled={context.isConnecting}
+          onClick={context.requestZWA2SerialPort}
+          disabled={context.connectionState.status === 'connecting'}
           className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-400"
         >
-          {context.isConnecting ? 'Connecting...' : 'Connect'}
+          {context.connectionState.status === 'connecting' ? 'Connecting...' : 'Connect'}
         </button>
       )}
       {isConnected && context.onDisconnect && (
         <button
           onClick={() => {
             context.onDisconnect?.();
-            context.onConnect();
+            context.requestZWA2SerialPort();
           }}
           className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
         >

@@ -1,57 +1,61 @@
 import { useState } from "react";
 import { ZWavePortManager } from "./lib/zwave";
+import { ESPPortManager } from "./lib/esp-utils";
 import ActionCard from "./components/ActionCard";
 import ActionCardsGrid from "./components/ActionCardsGrid";
 import Breadcrumb from "./components/Breadcrumb";
 import WebSerialWarning from "./components/WebSerialWarning";
 import Wizard from "./components/Wizard";
-import type { BaseWizardContext } from "./components/Wizard";
+import type { BaseWizardContext, ConnectionState } from "./components/Wizard";
 import { wizards, type WizardId } from "./wizards";
 
-interface ConnectionStatus {
-	connected: boolean;
-	mode?: string;
-	error?: string;
-}
-
 export default function App() {
-	const [serialPort, setSerialPort] = useState<SerialPort | null>(null);
-	const [connectionStatus, setConnectionStatus] = useState<ConnectionStatus>({
-		connected: false,
+	const [connectionState, setConnectionState] = useState<ConnectionState>({
+		status: 'disconnected',
 	});
-	const [isConnecting, setIsConnecting] = useState(false);
 	const [activeWizard, setActiveWizard] = useState<WizardId | null>(null);
-
-	const handleConnect = async (): Promise<boolean> => {
-		setIsConnecting(true);
-		setConnectionStatus({ connected: false });
-
-		const port = await ZWavePortManager.requestPort();
-		if (port) {
-			setSerialPort(port);
-			setConnectionStatus({ connected: true, mode: "Port Connected" });
-			setIsConnecting(false);
-			return true;
-		} else {
-			setConnectionStatus({
-				connected: false,
-				error: "Failed to connect to device",
-			});
-			setIsConnecting(false);
-			return false;
-		}
-	};
 
 	const handleDisconnect = async () => {
 		try {
-			if (serialPort) {
-				await serialPort.close();
-				setSerialPort(null);
+			if (connectionState.status === 'connected' && connectionState.port.connected && connectionState.port.readable) {
+				await connectionState.port.close();
 			}
 		} catch (error) {
 			console.error("Error during disconnect:", error);
 		} finally {
-			setConnectionStatus({ connected: false });
+			setConnectionState({ status: 'disconnected' });
+		}
+	};
+
+	const requestZWA2SerialPort = async (): Promise<boolean> => {
+		setConnectionState({ status: 'connecting', type: 'zwa2' });
+
+		// Close any pre-existing connection first
+		await handleDisconnect();
+
+		const port = await ZWavePortManager.requestPort();
+		if (port) {
+			setConnectionState({ status: 'connected', port, type: 'zwa2' });
+			return true;
+		} else {
+			setConnectionState({ status: 'disconnected' });
+			return false;
+		}
+	};
+
+	const requestESP32SerialPort = async (): Promise<boolean> => {
+		setConnectionState({ status: 'connecting', type: 'esp32' });
+
+		// Close any pre-existing connection first
+		await handleDisconnect();
+
+		const port = await ESPPortManager.requestPort();
+		if (port) {
+			setConnectionState({ status: 'connected', port, type: 'esp32' });
+			return true;
+		} else {
+			setConnectionState({ status: 'disconnected' });
+			return false;
 		}
 	};
 
@@ -60,10 +64,9 @@ export default function App() {
 	};
 
 	const createBaseWizardContext = (): BaseWizardContext => ({
-		serialPort,
-		isConnected: connectionStatus.connected,
-		isConnecting,
-		onConnect: handleConnect,
+		connectionState,
+		requestZWA2SerialPort,
+		requestESP32SerialPort,
 		onDisconnect: handleDisconnect,
 	});
 
@@ -91,7 +94,7 @@ export default function App() {
 						<Breadcrumb
 							items={breadcrumbItems}
 							onHomeClick={handleCloseWizard}
-							disabled={isConnecting}
+							disabled={connectionState.status === 'connecting'}
 						/>
 
 						<div className="mt-8">
