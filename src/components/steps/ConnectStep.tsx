@@ -1,4 +1,4 @@
-import { LinkIcon, LinkSlashIcon } from '@heroicons/react/24/outline';
+import { LinkIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef } from 'react';
 import type { WizardStepProps } from '../Wizard';
 
@@ -19,11 +19,7 @@ export default function ConnectStep<T>({ context }: WizardStepProps<T>) {
   return (
     <div className="text-center py-8">
       <div className={`mb-4 ${isConnected ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-600'}`}>
-        {isConnected ? (
-          <LinkIcon className="w-16 h-16 mx-auto" />
-        ) : (
-          <LinkSlashIcon className="w-16 h-16 mx-auto" />
-        )}
+        <LinkIcon className="w-16 h-16 mx-auto" />
       </div>
       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
         {isConnected ? 'ZWA-2 Connected' : 'Connect to ZWA-2'}
