@@ -305,7 +305,7 @@ export async function flashESPFirmware(context: WizardContext<UpdateESPFirmwareS
 
 export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
 	id: "update-esp",
-	title: "Update ESP Firmware",
+	title: "Update ESP firmware",
 	description:
 		"Update the ESP bridge firmware on your ZWA-2.",
 	icon: CpuChipIcon,
