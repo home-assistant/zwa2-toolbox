@@ -153,7 +153,7 @@ async function handleInstallStepEntry(context: WizardContext<InstallFirmwareStat
 
 export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 	id: "install",
-	title: "Install Firmware",
+	title: "Install firmware",
 	description:
 		"Install the latest controller firmware on your ZWA-2.",
 	icon: CloudArrowDownIcon,

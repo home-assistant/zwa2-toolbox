@@ -114,7 +114,7 @@ export default function App() {
 		<div className="bg-white dark:bg-gray-900 min-h-screen px-6 py-24 sm:py-32 lg:px-8">
 			<div className="max-w-7xl mx-auto">
 				<h2 className="text-4xl font-semibold tracking-tight text-balance text-gray-900 sm:text-5xl dark:text-white">
-					ZWA-2 Toolbox
+					Home Assistant Connect ZWA-2 Toolbox
 				</h2>
 				<p className="mt-6 max-w-xl text-lg text-gray-600 dark:text-gray-300">
 					User friendly tools to manage Home Assistant Connect ZWA-2
