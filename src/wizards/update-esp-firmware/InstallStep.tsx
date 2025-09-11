@@ -87,7 +87,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
       <div className="text-center py-8">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Download ESP Firmware
+          Download ESP firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
           Downloading the latest ESP bridge firmware...
@@ -102,7 +102,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
       <div className="text-center py-8">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Enter Bootloader
+          Enter bootloader
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
           Putting ESP into bootloader mode...
@@ -199,7 +199,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
       <div className="text-center py-8">
         <CircularProgress progress={progress} className="mb-4" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Update ESP Firmware
+          Update ESP firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
           Installing {selectedFirmware?.type === "latest-esp" && latestESPFirmwareInfo
@@ -215,7 +215,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
   return (
     <div className="text-center py-8">
       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-        Update ESP Firmware
+        Update ESP firmware
       </h3>
       <p className="text-gray-600 dark:text-gray-300">
         Ready to update ESP firmware...

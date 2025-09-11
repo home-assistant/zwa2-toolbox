@@ -39,7 +39,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
     return (
       <div className="py-8">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-          Recover Corrupted Firmware
+          Recover corrupted firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
           Your adapter is in bootloader mode due to corrupted firmware. Choose how you would like to recover it:

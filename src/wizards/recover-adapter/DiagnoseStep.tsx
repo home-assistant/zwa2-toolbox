@@ -61,7 +61,7 @@ export default function DiagnoseStep({ context }: WizardStepProps<RecoverAdapter
     return (
       <div className="py-8">
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
-          Diagnosis Results
+          Diagnostics results
         </h3>
         <DiagnosisResultDisplay result={diagnosisResult} />
       </div>
@@ -74,7 +74,7 @@ export default function DiagnoseStep({ context }: WizardStepProps<RecoverAdapter
         Diagnose Adapter
       </h3>
       <p className="text-gray-600 dark:text-gray-300">
-        Diagnosis will start automatically when you reach this step.
+        Diagnostis will start automatically when you reach this step.
       </p>
     </div>
   );

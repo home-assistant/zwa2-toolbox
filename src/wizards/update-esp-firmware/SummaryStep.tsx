@@ -15,7 +15,7 @@ export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwa
               </svg>
             </div>
           ),
-          title: "ESP Firmware Updated Successfully!",
+          title: "ESP firmware updated successfully!",
           message: (
             <p className="text-gray-600 dark:text-gray-300">
               Please power-cycle your ZWA-2 now to start the new firmware.
@@ -32,7 +32,7 @@ export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwa
               </svg>
             </div>
           ),
-          title: "Already Up to Date!",
+          title: "Already up to date!",
           message: (
             <div>
               <p className="text-gray-600 dark:text-gray-300 mb-2">
@@ -56,7 +56,7 @@ export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwa
               </svg>
             </div>
           ),
-          title: "ESP Firmware Update Failed",
+          title: "ESP firmware update failed",
           message: (
             <div>
               <p className="text-gray-600 dark:text-gray-300 mb-2">
@@ -80,7 +80,7 @@ export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwa
               </svg>
             </div>
           ),
-          title: "Update Status Unknown",
+          title: "Update status unknown",
           message: (
             <p className="text-gray-600 dark:text-gray-300">
               The update process was interrupted or did not complete normally.
