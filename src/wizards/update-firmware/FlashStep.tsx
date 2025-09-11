@@ -25,7 +25,7 @@ export default function FlashStep({ context }: WizardStepProps<UpdateFirmwareSta
   return (
     <div className="py-8">
       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-        Updating Firmware
+        Updating firmware
       </h3>
       <p className="text-gray-600 dark:text-gray-300 mb-6">
         Updating firmware: {selectedFile?.name}

@@ -15,7 +15,7 @@ export default function SummaryStep({ context }: WizardStepProps<InstallFirmware
               </svg>
             </div>
           ),
-          title: "Firmware Installed Successfully!",
+          title: "Firmware installed successfully!",
           message: (
             <p className="text-gray-600 dark:text-gray-300">
               Your ZWA-2 has been updated with the latest controller firmware.
@@ -32,7 +32,7 @@ export default function SummaryStep({ context }: WizardStepProps<InstallFirmware
               </svg>
             </div>
           ),
-          title: "Installation Failed",
+          title: "Installation failed",
           message: (
             <div>
               <p className="text-gray-600 dark:text-gray-300 mb-2">
@@ -56,7 +56,7 @@ export default function SummaryStep({ context }: WizardStepProps<InstallFirmware
               </svg>
             </div>
           ),
-          title: "Installation Status Unknown",
+          title: "Installation status unknown",
           message: (
             <p className="text-gray-600 dark:text-gray-300">
               The installation process was interrupted or did not complete normally.

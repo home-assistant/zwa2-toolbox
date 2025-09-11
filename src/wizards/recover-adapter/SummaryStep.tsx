@@ -136,24 +136,24 @@ function getRecoveryResult(state: RecoverAdapterState): RecoveryResult {
 function getResultTitle(result: RecoveryResult): string {
   switch (result.tag) {
     case "NO_ISSUES":
-      return "Adapter is Working Properly";
+      return "Adapter is working properly";
     case "STARTED_APPLICATION":
     case "RECOVERED":
-      return "Adapter Successfully Recovered";
+      return "Adapter successfully recovered";
     case "END_DEVICE_CLI":
-      return "Wrong Firmware Detected";
+      return "Wrong firmware detected";
     case "CONNECTION_FAILED":
-      return "Connection Failed";
+      return "Connection failed";
     case "RECOVERY_FAILED":
-      return "Recovery Failed";
+      return "Recovery failed";
     case "DOWNLOAD_FAILED":
-      return "Firmware Download Failed";
+      return "Firmware download failed";
     case "CORRUPTED_FIRMWARE":
-      return "Recovery Required";
+      return "Recovery required";
     case "UNKNOWN_FIRMWARE":
-      return "Unknown Firmware";
+      return "Unknown firmware";
     default:
-      return "Recovery Summary";
+      return "Recovery summary";
   }
 }
 
@@ -164,7 +164,7 @@ export default function SummaryStep({ context }: WizardStepProps<RecoverAdapterS
   return (
     <div className="py-8">
       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
-        Recovery Summary
+        Recovery summary
       </h3>
 
       {result.severity === "success" && (
