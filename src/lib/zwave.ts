@@ -22,93 +22,7 @@ import {
 	tryUnzipFirmwareFile,
 	type FirmwareFileFormat,
 } from "zwave-js";
-
-export interface DeviceFilters {
-	usbVendorId: number;
-	usbProductId: number;
-}
-
-export const ZWA2_DEVICE_FILTERS: DeviceFilters[] = [
-	// CP2102
-	{ usbVendorId: 0x10c4, usbProductId: 0xea60 },
-	// Nabu Casa ESP bridge, first EVT revision
-	{ usbVendorId: 0x1234, usbProductId: 0x5678 },
-	// Nabu Casa ESP bridge, uses Espressif VID/PID
-	{ usbVendorId: 0x303a, usbProductId: 0x4001 },
-];
-
-const MAGIC_BAUDRATES = [150, 300, 600];
-
-/**
- * Helper function to enter ESP command mode and send BZ command to reset Z-Wave chip to bootloader
- * @param serialPort The connected serial port
- * @returns Promise resolving to boolean indicating success
- */
-async function resetZWaveChipViaCommandMode(serialPort: SerialPort): Promise<boolean> {
-	try {
-		console.log("Attempting Z-Wave chip reset via ESP command mode");
-
-		// Send magic baudrate sequence to enter command mode
-		for (let i = 0; i < MAGIC_BAUDRATES.length; i++) {
-			const baudrate = MAGIC_BAUDRATES[i];
-			if (i > 0) {
-				await wait(100);
-			}
-			await serialPort.close();
-			await serialPort.open({ baudRate: baudrate });
-		}
-		console.log("Sent magic baudrate sequence");
-
-		const reader = serialPort.readable?.getReader();
-		const writer = serialPort.writable?.getWriter();
-
-		if (!reader || !writer) {
-			console.error("Failed to get readable/writable streams from serial port");
-			return false;
-		}
-
-		// Helper to read data with timeout
-		const awaitChunk = (predicate: (chunk: string) => boolean, timeoutMs: number = 1000) => {
-			return Promise.race([
-				reader.read().then(({ value, done }) => {
-					const receivedChunk = value && new TextDecoder().decode(value);
-					if (done || receivedChunk == undefined) return undefined;
-					if (!predicate(receivedChunk)) return undefined;
-					return receivedChunk;
-				}).catch(() => undefined),
-				wait(timeoutMs).then(() => undefined)
-			]);
-		};
-
-		// Helper to write commands
-		const writeCommand = async (cmd: string) => {
-			const command = new TextEncoder().encode(cmd);
-			await writer.write(command);
-		};
-
-		// Check if we get the command menu prompt
-		const cmdMenuPromise = awaitChunk((chunk) => chunk.startsWith("cmd>"), 2000);
-		const menuResult = await cmdMenuPromise;
-
-		if (menuResult) {
-			console.log("Entered command mode, sending BZ command");
-			// Send BZ command to reset Z-Wave chip to bootloader
-			await writeCommand("BZ");
-			console.log("Sent BZ command to reset Z-Wave chip");
-		} else {
-			console.log("Did not enter command mode, command mode may not be supported");
-		}
-
-		// Clean up the streams
-		writer.releaseLock();
-		reader.releaseLock();
-
-		return true;
-	} catch (error) {
-		console.error("Failed to reset Z-Wave chip via command mode:", error);
-		return false;
-	}
-}
+import { resetZWaveChipViaCommandMode } from "./esp-utils";
 
 export class ZWaveBinding {
 	private driver?: Driver;
@@ -158,11 +72,15 @@ export class ZWaveBinding {
 		await wait(500);
 		let success = await this.createDriver();
 		if (success && this.driver?.mode === DriverMode.Bootloader) {
-			console.log("Successfully entered bootloader via legacy RTS/DTR procedure");
+			console.log(
+				"Successfully entered bootloader via legacy RTS/DTR procedure",
+			);
 			return true;
 		}
 
-		console.log("Legacy RTS/DTR procedure failed, trying command mode approach");
+		console.log(
+			"Legacy RTS/DTR procedure failed, trying command mode approach",
+		);
 
 		// Second attempt: Command mode with BZ command
 		// Destroy the current driver first
@@ -171,7 +89,9 @@ export class ZWaveBinding {
 		}
 
 		// Try the command mode approach
-		const commandModeSuccess = await resetZWaveChipViaCommandMode(this.port);
+		const commandModeSuccess = await resetZWaveChipViaCommandMode(
+			this.port,
+		);
 		if (!commandModeSuccess) {
 			console.log("Command mode approach failed");
 			return false;
@@ -184,7 +104,9 @@ export class ZWaveBinding {
 		await wait(500);
 		success = await this.createDriver();
 		if (success && this.driver?.mode === DriverMode.Bootloader) {
-			console.log("Successfully entered bootloader via command mode BZ procedure");
+			console.log(
+				"Successfully entered bootloader via command mode BZ procedure",
+			);
 			return true;
 		}
 
@@ -269,7 +191,10 @@ export class ZWaveBinding {
 		this.onReady?.();
 	}
 
-	async flashFirmware(fileName: string, firmwareData: Uint8Array): Promise<boolean> {
+	async flashFirmware(
+		fileName: string,
+		firmwareData: Uint8Array,
+	): Promise<boolean> {
 		if (!this.driver) {
 			this.onError?.("Driver not initialized");
 			return false;
@@ -283,7 +208,7 @@ export class ZWaveBinding {
 				const unzippedFirmware = tryUnzipFirmwareFile(firmwareData);
 				if (!unzippedFirmware) {
 					this.onError?.(
-						"Could not extract a valid firmware file from the ZIP archive."
+						"Could not extract a valid firmware file from the ZIP archive.",
 					);
 					return false;
 				}
@@ -396,6 +321,20 @@ export class ZWaveBinding {
 		}
 	}
 }
+
+export interface DeviceFilters {
+	usbVendorId: number;
+	usbProductId: number;
+}
+
+export const ZWA2_DEVICE_FILTERS: DeviceFilters[] = [
+	// CP2102
+	{ usbVendorId: 0x10c4, usbProductId: 0xea60 },
+	// Nabu Casa ESP bridge, first EVT revision
+	{ usbVendorId: 0x1234, usbProductId: 0x5678 },
+	// Nabu Casa ESP bridge, uses Espressif VID/PID
+	{ usbVendorId: 0x303a, usbProductId: 0x4001 },
+];
 
 // Helper class for requesting and managing SerialPort connection
 export class ZWavePortManager {

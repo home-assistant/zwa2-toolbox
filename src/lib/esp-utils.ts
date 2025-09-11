@@ -140,6 +140,78 @@ export async function enterESPBootloader(
 	}
 }
 
+/**
+ * Helper function to enter ESP command mode and send BZ command to reset Z-Wave chip to bootloader
+ * @param serialPort The connected serial port
+ * @returns Promise resolving to boolean indicating success
+ */
+export async function resetZWaveChipViaCommandMode(serialPort: SerialPort): Promise<boolean> {
+	try {
+		console.log("Attempting Z-Wave chip reset via ESP command mode");
+
+		// Send magic baudrate sequence to enter command mode
+		for (let i = 0; i < MAGIC_BAUDRATES.length; i++) {
+			const baudrate = MAGIC_BAUDRATES[i];
+			if (i > 0) {
+				await wait(100);
+			}
+			await serialPort.close();
+			await serialPort.open({ baudRate: baudrate });
+		}
+		console.log("Sent magic baudrate sequence");
+
+		const reader = serialPort.readable?.getReader();
+		const writer = serialPort.writable?.getWriter();
+
+		if (!reader || !writer) {
+			console.error("Failed to get readable/writable streams from serial port");
+			return false;
+		}
+
+		// Helper to read data with timeout
+		const awaitChunk = (predicate: (chunk: string) => boolean, timeoutMs: number = 1000) => {
+			return Promise.race([
+				reader.read().then(({ value, done }) => {
+					const receivedChunk = value && new TextDecoder().decode(value);
+					if (done || receivedChunk == undefined) return undefined;
+					if (!predicate(receivedChunk)) return undefined;
+					return receivedChunk;
+				}).catch(() => undefined),
+				wait(timeoutMs).then(() => undefined)
+			]);
+		};
+
+		// Helper to write commands
+		const writeCommand = async (cmd: string) => {
+			const command = new TextEncoder().encode(cmd);
+			await writer.write(command);
+		};
+
+		// Check if we get the command menu prompt
+		const cmdMenuPromise = awaitChunk((chunk) => chunk.startsWith("cmd>"), 2000);
+		const menuResult = await cmdMenuPromise;
+
+		if (menuResult) {
+			console.log("Entered command mode, sending BZ command");
+			// Send BZ command to reset Z-Wave chip to bootloader
+			await writeCommand("BZ");
+			console.log("Sent BZ command to reset Z-Wave chip");
+		} else {
+			console.log("Did not enter command mode, command mode may not be supported");
+		}
+
+		// Clean up the streams
+		writer.releaseLock();
+		reader.releaseLock();
+
+		return true;
+	} catch (error) {
+		console.error("Failed to reset Z-Wave chip via command mode:", error);
+		return false;
+	}
+}
+
+
 export const ESP32_DEVICE_FILTERS = [
 	// VID/PID when triggering the bootloader through software
 	{ usbVendorId: 0x303a, usbProductId: 0x0009 },
