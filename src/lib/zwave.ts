@@ -46,12 +46,24 @@ export class ZWaveBinding {
 	async resetToBootloader(): Promise<boolean> {
 		if (!this.port) return false;
 
-		// Hardware reset into bootloader
+		// ===
+		// Attempt 1: Use Serial API to enter bootloader
+		if (this.driver?.mode === DriverMode.SerialAPI) {
+			try {
+				await this.driver.enterBootloader();
+				return true;
+			} catch {
+				// Continue with next attempt
+			}
+		}
+
+		// Now we use the ESP for triggering a hardware reset into bootloader
 		await this.driver?.destroy();
 		// This invalidates our current serial binding, so we need to recreate it
 		this.serialBinding = createWebSerialPortFactory(this.port);
 
-		// First attempt: Legacy RTS/DTR procedure
+		// ===
+		// Attempt 2: Legacy RTS/DTR procedure
 		console.log("Attempting legacy RTS/DTR reset procedure");
 		await this.port.setSignals({
 			dataTerminalReady: false,
@@ -82,13 +94,13 @@ export class ZWaveBinding {
 			"Legacy RTS/DTR procedure failed, trying command mode approach",
 		);
 
-		// Second attempt: Command mode with BZ command
+		// ===
+		// Attempt 3: Command mode with BZ command
 		// Destroy the current driver first
 		if (this.driver) {
 			await this.driver.destroy().catch(() => {});
 		}
 
-		// Try the command mode approach
 		const commandModeSuccess = await resetZWaveChipViaCommandMode(
 			this.port,
 		);
@@ -98,6 +110,7 @@ export class ZWaveBinding {
 		}
 
 		// Recreate serial binding after command mode operations
+		await this.port.open({ baudRate: 115200 });
 		this.serialBinding = createWebSerialPortFactory(this.port);
 
 		// Wait 500ms and check if bootloader was entered
@@ -110,7 +123,7 @@ export class ZWaveBinding {
 			return true;
 		}
 
-		console.log("Both reset procedures failed");
+		console.log("All reset procedures failed");
 		return false;
 	}
 
