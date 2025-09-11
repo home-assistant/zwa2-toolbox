@@ -37,6 +37,79 @@ export const ZWA2_DEVICE_FILTERS: DeviceFilters[] = [
 	{ usbVendorId: 0x303a, usbProductId: 0x4001 },
 ];
 
+const MAGIC_BAUDRATES = [150, 300, 600];
+
+/**
+ * Helper function to enter ESP command mode and send BZ command to reset Z-Wave chip to bootloader
+ * @param serialPort The connected serial port
+ * @returns Promise resolving to boolean indicating success
+ */
+async function resetZWaveChipViaCommandMode(serialPort: SerialPort): Promise<boolean> {
+	try {
+		console.log("Attempting Z-Wave chip reset via ESP command mode");
+
+		// Send magic baudrate sequence to enter command mode
+		for (let i = 0; i < MAGIC_BAUDRATES.length; i++) {
+			const baudrate = MAGIC_BAUDRATES[i];
+			if (i > 0) {
+				await wait(100);
+			}
+			await serialPort.close();
+			await serialPort.open({ baudRate: baudrate });
+		}
+		console.log("Sent magic baudrate sequence");
+
+		const reader = serialPort.readable?.getReader();
+		const writer = serialPort.writable?.getWriter();
+
+		if (!reader || !writer) {
+			console.error("Failed to get readable/writable streams from serial port");
+			return false;
+		}
+
+		// Helper to read data with timeout
+		const awaitChunk = (predicate: (chunk: string) => boolean, timeoutMs: number = 1000) => {
+			return Promise.race([
+				reader.read().then(({ value, done }) => {
+					const receivedChunk = value && new TextDecoder().decode(value);
+					if (done || receivedChunk == undefined) return undefined;
+					if (!predicate(receivedChunk)) return undefined;
+					return receivedChunk;
+				}).catch(() => undefined),
+				wait(timeoutMs).then(() => undefined)
+			]);
+		};
+
+		// Helper to write commands
+		const writeCommand = async (cmd: string) => {
+			const command = new TextEncoder().encode(cmd);
+			await writer.write(command);
+		};
+
+		// Check if we get the command menu prompt
+		const cmdMenuPromise = awaitChunk((chunk) => chunk.startsWith("cmd>"), 2000);
+		const menuResult = await cmdMenuPromise;
+
+		if (menuResult) {
+			console.log("Entered command mode, sending BZ command");
+			// Send BZ command to reset Z-Wave chip to bootloader
+			await writeCommand("BZ");
+			console.log("Sent BZ command to reset Z-Wave chip");
+		} else {
+			console.log("Did not enter command mode, command mode may not be supported");
+		}
+
+		// Clean up the streams
+		writer.releaseLock();
+		reader.releaseLock();
+
+		return true;
+	} catch (error) {
+		console.error("Failed to reset Z-Wave chip via command mode:", error);
+		return false;
+	}
+}
+
 export class ZWaveBinding {
 	private driver?: Driver;
 	private port: SerialPort;
@@ -64,6 +137,8 @@ export class ZWaveBinding {
 		// This invalidates our current serial binding, so we need to recreate it
 		this.serialBinding = createWebSerialPortFactory(this.port);
 
+		// First attempt: Legacy RTS/DTR procedure
+		console.log("Attempting legacy RTS/DTR reset procedure");
 		await this.port.setSignals({
 			dataTerminalReady: false,
 			requestToSend: true,
@@ -79,10 +154,41 @@ export class ZWaveBinding {
 			requestToSend: false,
 		});
 
-		const success = await this.createDriver();
-		if (success) {
-			return this.driver?.mode === DriverMode.Bootloader;
+		// Wait 500ms and check if bootloader was entered
+		await wait(500);
+		let success = await this.createDriver();
+		if (success && this.driver?.mode === DriverMode.Bootloader) {
+			console.log("Successfully entered bootloader via legacy RTS/DTR procedure");
+			return true;
 		}
+
+		console.log("Legacy RTS/DTR procedure failed, trying command mode approach");
+
+		// Second attempt: Command mode with BZ command
+		// Destroy the current driver first
+		if (this.driver) {
+			await this.driver.destroy().catch(() => {});
+		}
+
+		// Try the command mode approach
+		const commandModeSuccess = await resetZWaveChipViaCommandMode(this.port);
+		if (!commandModeSuccess) {
+			console.log("Command mode approach failed");
+			return false;
+		}
+
+		// Recreate serial binding after command mode operations
+		this.serialBinding = createWebSerialPortFactory(this.port);
+
+		// Wait 500ms and check if bootloader was entered
+		await wait(500);
+		success = await this.createDriver();
+		if (success && this.driver?.mode === DriverMode.Bootloader) {
+			console.log("Successfully entered bootloader via command mode BZ procedure");
+			return true;
+		}
+
+		console.log("Both reset procedures failed");
 		return false;
 	}
 
