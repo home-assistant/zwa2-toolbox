@@ -10,6 +10,53 @@ const MAGIC_BAUDRATES = [150, 300, 600];
 export type BootloaderResult = "success" | "failed" | "no-update-needed";
 
 /**
+ * Sends the magic baudrate sequence to enter command mode
+ */
+async function sendMagicBaudrateSequence(
+	serialPort: SerialPort,
+): Promise<void> {
+	for (let i = 0; i < MAGIC_BAUDRATES.length; i++) {
+		const baudrate = MAGIC_BAUDRATES[i];
+		if (i > 0) {
+			await wait(100);
+		}
+		await serialPort.close();
+		await serialPort.open({ baudRate: baudrate });
+	}
+	console.log("Sent magic baudrate sequence");
+}
+
+/**
+ * Creates an awaitChunk function that reads data matching a predicate
+ */
+function awaitChunk(
+	reader: ReadableStreamDefaultReader<Uint8Array>,
+	predicate: (chunk: string) => boolean,
+): Promise<string | undefined> {
+	return reader
+		.read()
+		.then(({ value, done }) => {
+			// Return true only if we've received the expected chunk.
+			const receivedChunk = value && new TextDecoder().decode(value);
+			if (done || receivedChunk == undefined) return undefined;
+			if (!predicate(receivedChunk)) return undefined;
+			return receivedChunk;
+		})
+		.catch(() => undefined);
+}
+
+/**
+ * Creates a writeCommand function for sending commands to the serial port
+ */
+async function writeCommand(
+	writer: WritableStreamDefaultWriter<Uint8Array>,
+	cmd: string,
+) {
+	const command = new TextEncoder().encode(cmd);
+	await writer.write(command);
+}
+
+/**
  * Enters the ESP bootloader mode on the connected device
  * @param serialPort The connected serial port
  * @param checkFirmwareInfo Optional callback called with firmware info before entering bootloader. Return false or throw to indicate no update needed.
@@ -30,15 +77,7 @@ export async function enterESPBootloader(
 		// await serialPort.close();
 		serialPort.addEventListener("disconnect", onDisconnect);
 
-		for (let i = 0; i < MAGIC_BAUDRATES.length; i++) {
-			const baudrate = MAGIC_BAUDRATES[i];
-			if (i > 0) {
-				await wait(100);
-			}
-			await serialPort.close();
-			await serialPort.open({ baudRate: baudrate });
-		}
-		console.log("Sent magic baudrate sequence");
+		await sendMagicBaudrateSequence(serialPort);
 
 		const reader = serialPort.readable?.getReader();
 		if (!reader) {
@@ -48,21 +87,9 @@ export async function enterESPBootloader(
 			return "success";
 		}
 
-		const awaitChunk = (predicate: (chunk: string) => boolean) => {
-			return reader
-				.read()
-				.then(({ value, done }) => {
-					// Return true only if we've received the expected chunk.
-					const receivedChunk =
-						value && new TextDecoder().decode(value);
-					if (done || receivedChunk == undefined) return undefined;
-					if (!predicate(receivedChunk)) return undefined;
-					return receivedChunk;
-				})
-				.catch(() => undefined);
-		};
-
-		const cmdMenuPromise = awaitChunk((chunk) => chunk.startsWith("cmd>"));
+		const cmdMenuPromise = awaitChunk(reader, (chunk) =>
+			chunk.startsWith("cmd>"),
+		);
 
 		// In the legacy implementation, the magic sequence already triggers the bootloader
 		const menuResult = await Promise.race([
@@ -81,16 +108,11 @@ export async function enterESPBootloader(
 			throw new Error("Failed to get writable stream from serial port");
 		}
 
-		const writeCommand = async (cmd: string) => {
-			const command = new TextEncoder().encode(cmd);
-			await writer.write(command);
-		};
-
 		// Only if we actually saw the menu prompt, check for firmware info
 		// Otherwise we are dealing with something that doesn't support it
 		if (menuResult === "menu") {
-			const infoPromise = awaitChunk(() => true);
-			await writeCommand("I");
+			const infoPromise = awaitChunk(reader, () => true);
+			await writeCommand(writer, "I");
 			console.log("Sent 'I' to get firmware info");
 			const info = await infoPromise;
 			if (info) {
@@ -104,6 +126,9 @@ export async function enterESPBootloader(
 							console.log(
 								"Firmware check callback returned false, indicating no update needed",
 							);
+							// Leave command mode first
+							await writeCommand(writer, "X");
+							reader.releaseLock();
 							writer.releaseLock();
 							return "no-update-needed";
 						}
@@ -112,6 +137,7 @@ export async function enterESPBootloader(
 							"Firmware check callback threw an error, treating as no update needed:",
 							error,
 						);
+						reader.releaseLock();
 						writer.releaseLock();
 						return "no-update-needed";
 					}
@@ -121,9 +147,10 @@ export async function enterESPBootloader(
 			}
 		}
 
-		await writeCommand("BE");
+		await writeCommand(writer, "BE");
 		console.log("Sent 'BE' to enter bootloader");
 
+		reader.releaseLock();
 		writer.releaseLock();
 
 		// Wait up to 5 seconds for the disconnect event
@@ -137,6 +164,63 @@ export async function enterESPBootloader(
 		return "failed";
 	} finally {
 		serialPort.removeEventListener("disconnect", onDisconnect);
+	}
+}
+
+/**
+ * Helper function to enter ESP command mode and send BZ command to reset Z-Wave chip to bootloader
+ * @param serialPort The connected serial port
+ * @returns Promise resolving to boolean indicating success
+ */
+export async function resetZWaveChipViaCommandMode(
+	serialPort: SerialPort,
+): Promise<boolean> {
+	try {
+		console.log("Attempting Z-Wave chip reset via ESP command mode");
+
+		await sendMagicBaudrateSequence(serialPort);
+
+		const reader = serialPort.readable?.getReader();
+		const writer = serialPort.writable?.getWriter();
+		if (!reader || !writer) {
+			console.error(
+				"Failed to get readable/writable streams from serial port",
+			);
+			return false;
+		}
+
+		// Check if we get the command menu prompt
+		const cmdMenuPromise = awaitChunk(reader, (chunk) =>
+			chunk.startsWith("cmd>"),
+		);
+		const menuResult = await Promise.race([
+			cmdMenuPromise.then((result) => !!result),
+			wait(2000).then(() => false),
+		]);
+
+		if (menuResult) {
+			console.log("Entered command mode, sending BZ command");
+			// Send BZ command to reset Z-Wave chip to bootloader
+			await writeCommand(writer, "BZ");
+			console.log("Sent BZ command to reset Z-Wave chip");
+		} else {
+			console.log(
+				"Did not enter command mode, command mode may not be supported",
+			);
+		}
+
+		// Clean up the streams
+		writer.releaseLock();
+		reader.releaseLock();
+
+		// Close the serial port again, we will want to reopen it with a different baudrate again
+		await serialPort.close();
+
+		// If we entered the menu, then we also triggered the reset
+		return menuResult;
+	} catch (error) {
+		console.error("Failed to reset Z-Wave chip via command mode:", error);
+		return false;
 	}
 }
 

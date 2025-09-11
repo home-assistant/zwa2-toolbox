@@ -22,20 +22,7 @@ import {
 	tryUnzipFirmwareFile,
 	type FirmwareFileFormat,
 } from "zwave-js";
-
-export interface DeviceFilters {
-	usbVendorId: number;
-	usbProductId: number;
-}
-
-export const ZWA2_DEVICE_FILTERS: DeviceFilters[] = [
-	// CP2102
-	{ usbVendorId: 0x10c4, usbProductId: 0xea60 },
-	// Nabu Casa ESP bridge, first EVT revision
-	{ usbVendorId: 0x1234, usbProductId: 0x5678 },
-	// Nabu Casa ESP bridge, uses Espressif VID/PID
-	{ usbVendorId: 0x303a, usbProductId: 0x4001 },
-];
+import { resetZWaveChipViaCommandMode } from "./esp-utils";
 
 export class ZWaveBinding {
 	private driver?: Driver;
@@ -59,11 +46,25 @@ export class ZWaveBinding {
 	async resetToBootloader(): Promise<boolean> {
 		if (!this.port) return false;
 
-		// Hardware reset into bootloader
+		// ===
+		// Attempt 1: Use Serial API to enter bootloader
+		if (this.driver?.mode === DriverMode.SerialAPI) {
+			try {
+				await this.driver.enterBootloader();
+				return true;
+			} catch {
+				// Continue with next attempt
+			}
+		}
+
+		// Now we use the ESP for triggering a hardware reset into bootloader
 		await this.driver?.destroy();
 		// This invalidates our current serial binding, so we need to recreate it
 		this.serialBinding = createWebSerialPortFactory(this.port);
 
+		// ===
+		// Attempt 2: Legacy RTS/DTR procedure
+		console.log("Attempting legacy RTS/DTR reset procedure");
 		await this.port.setSignals({
 			dataTerminalReady: false,
 			requestToSend: true,
@@ -79,10 +80,50 @@ export class ZWaveBinding {
 			requestToSend: false,
 		});
 
-		const success = await this.createDriver();
-		if (success) {
-			return this.driver?.mode === DriverMode.Bootloader;
+		// Wait 500ms and check if bootloader was entered
+		await wait(500);
+		let success = await this.createDriver();
+		if (success && this.driver?.mode === DriverMode.Bootloader) {
+			console.log(
+				"Successfully entered bootloader via legacy RTS/DTR procedure",
+			);
+			return true;
 		}
+
+		console.log(
+			"Legacy RTS/DTR procedure failed, trying command mode approach",
+		);
+
+		// ===
+		// Attempt 3: Command mode with BZ command
+		// Destroy the current driver first
+		if (this.driver) {
+			await this.driver.destroy().catch(() => {});
+		}
+
+		const commandModeSuccess = await resetZWaveChipViaCommandMode(
+			this.port,
+		);
+		if (!commandModeSuccess) {
+			console.log("Command mode approach failed");
+			return false;
+		}
+
+		// Recreate serial binding after command mode operations
+		await this.port.open({ baudRate: 115200 });
+		this.serialBinding = createWebSerialPortFactory(this.port);
+
+		// Wait 500ms and check if bootloader was entered
+		await wait(500);
+		success = await this.createDriver();
+		if (success && this.driver?.mode === DriverMode.Bootloader) {
+			console.log(
+				"Successfully entered bootloader via command mode BZ procedure",
+			);
+			return true;
+		}
+
+		console.log("All reset procedures failed");
 		return false;
 	}
 
@@ -163,7 +204,10 @@ export class ZWaveBinding {
 		this.onReady?.();
 	}
 
-	async flashFirmware(fileName: string, firmwareData: Uint8Array): Promise<boolean> {
+	async flashFirmware(
+		fileName: string,
+		firmwareData: Uint8Array,
+	): Promise<boolean> {
 		if (!this.driver) {
 			this.onError?.("Driver not initialized");
 			return false;
@@ -177,7 +221,7 @@ export class ZWaveBinding {
 				const unzippedFirmware = tryUnzipFirmwareFile(firmwareData);
 				if (!unzippedFirmware) {
 					this.onError?.(
-						"Could not extract a valid firmware file from the ZIP archive."
+						"Could not extract a valid firmware file from the ZIP archive.",
 					);
 					return false;
 				}
@@ -290,6 +334,20 @@ export class ZWaveBinding {
 		}
 	}
 }
+
+export interface DeviceFilters {
+	usbVendorId: number;
+	usbProductId: number;
+}
+
+export const ZWA2_DEVICE_FILTERS: DeviceFilters[] = [
+	// CP2102
+	{ usbVendorId: 0x10c4, usbProductId: 0xea60 },
+	// Nabu Casa ESP bridge, first EVT revision
+	{ usbVendorId: 0x1234, usbProductId: 0x5678 },
+	// Nabu Casa ESP bridge, uses Espressif VID/PID
+	{ usbVendorId: 0x303a, usbProductId: 0x4001 },
+];
 
 // Helper class for requesting and managing SerialPort connection
 export class ZWavePortManager {
