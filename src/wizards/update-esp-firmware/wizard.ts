@@ -1,70 +1,77 @@
 import { CpuChipIcon } from "@heroicons/react/24/outline";
-import ConnectStep from "../../components/steps/ConnectStep";
 import FileSelectStep from "./FileSelectStep";
 import InstallStep from "./InstallStep";
 import SummaryStep from "./SummaryStep";
+import ESPConnectStep from "./ESPConnectStep";
 import type { WizardConfig, WizardContext } from "../../components/Wizard";
-import { enterESPBootloader } from "../../lib/esp-utils";
-import { downloadLatestESPFirmware, type ESPFirmwareReleaseInfo } from "../../lib/esp-firmware-download";
+import { enterESPBootloader, ESP32_DEVICE_FILTERS } from "../../lib/esp-utils";
+import { fetchManifestFirmwareInfo, downloadFirmware, type ESPFirmwareReleaseInfo } from "../../lib/esp-firmware-download";
 import { ESPLoader, Transport, type FlashOptions, type LoaderOptions } from "esptool-js";
+import { ZWA2_DEVICE_FILTERS } from "../../lib/zwave";
 
 /**
- * Simple version comparison for semantic versions (e.g., v2025.09.1)
- * @param current The current version string
- * @param latest The latest version string
- * @returns true if latest is newer than current
+ * Combined device filters that accept both ZWA-2 and ESP32 devices
+ * This allows connecting to the device whether it's in normal mode or bootloader mode
  */
-function isVersionNewer(current: string, latest: string): boolean {
-	// Remove 'v' prefix if present and normalize
-	const normalize = (v: string) => v.replace(/^v/, '').split('.').map(n => parseInt(n, 10) || 0);
-	const currentParts = normalize(current);
-	const latestParts = normalize(latest);
-
-	// Pad arrays to same length
-	const maxLength = Math.max(currentParts.length, latestParts.length);
-	while (currentParts.length < maxLength) currentParts.push(0);
-	while (latestParts.length < maxLength) latestParts.push(0);
-
-	for (let i = 0; i < maxLength; i++) {
-		if (latestParts[i] > currentParts[i]) return true;
-		if (latestParts[i] < currentParts[i]) return false;
-	}
-	return false; // They are equal
-}
+export const COMBINED_DEVICE_FILTERS = [
+	...ZWA2_DEVICE_FILTERS,
+	...ESP32_DEVICE_FILTERS,
+];
 
 /**
- * Parse ESP version info response to extract version
- * @param versionInfo The raw version info string from ESP
- * @returns Extracted version string or null if not found
+ * Available ESP firmware manifests
  */
-function parseESPVersion(versionInfo: string): string | null {
-	// Look for version patterns like "v2025.09.1", "2025.09.1", or "version 2025.09.1"
-	const versionMatch = versionInfo.match(/(?:version\s+)?v?(\d{4}\.\d{2}\.\d+)/i);
-	return versionMatch ? versionMatch[1] : null;
+export const ESP_FIRMWARE_MANIFESTS: Record<string, ESPFirmwareManifest> = {
+	usb: {
+		label: "USB Bridge",
+		description: "The default firmware that comes pre-installed on the ZWA-2.",
+		manifestUrl: "https://firmware.esphome.io/ha-connect-zwa-2/zwave-esp-bridge/manifest.json",
+		changelogUrl: (version: string) => `https://github.com/NabuCasa/zwave-esp-bridge/releases/tag/${version}`,
+	},
+	esphome: {
+		label: "Portable Z-Wave",
+		description: "Allows connecting to ZWA-2 via WiFi",
+		manifestUrl: "https://firmware.esphome.io/ha-connect-zwa-2/home-assistant-zwa-2/manifest.json",
+		experimental: true,
+	},
+};
+
+
+
+
+
+export interface ESPFirmwareManifest {
+	label: string;
+	description: string;
+	manifestUrl: string;
+	experimental?: boolean;
+	changelogUrl?: (version: string) => string;
 }
 
 export type ESPFirmwareOption =
-	| { type: "latest-esp"; version?: string };
+	| { type: "manifest"; manifestId: string; version?: string };
 
 export interface UpdateESPFirmwareState {
 	selectedFirmware: ESPFirmwareOption | null;
 	isInstalling: boolean;
 	progress: number;
-	installResult: "success" | "error" | "no-update-needed" | null;
+	installResult: "success" | "error" | null;
 	errorMessage: string;
 	downloadedFirmwareName: string | null;
 	downloadedFirmwareData: Uint8Array | null;
+	downloadedFirmwareOffset: number;
 	currentSubStep: number; // 0: download, 1: enter bootloader & ESP32 connection, 2: install
 	isDownloading: boolean;
 	isEnteringBootloader: boolean;
-	latestESPFirmwareInfo: ESPFirmwareReleaseInfo | null;
-	isLoadingFirmwareInfo: boolean;
-	currentESPVersion: string | null;
+	manifestInfo: Record<string, ESPFirmwareReleaseInfo> | null;
+	isLoadingManifestInfo: boolean;
 	bootloaderEntryFailed: boolean; // Track if automatic bootloader entry failed
+	detectedDeviceType: 'zwa2' | 'esp32' | 'unknown' | null; // Track detected device type
+	needsBootloaderMode: boolean; // Whether we need to enter bootloader mode
 }
 
 async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareState>): Promise<void> {
-	const { installResult, isInstalling, selectedFirmware } = context.state;
+	const { installResult, isInstalling, selectedFirmware, detectedDeviceType, needsBootloaderMode } = context.state;
 
 	// Don't start if already installing or if there's already a result
 	if (isInstalling || installResult !== null) {
@@ -93,27 +100,64 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 			isDownloading: true,
 		}));
 
-		// Download latest ESP firmware
-		if (selectedFirmware.type === "latest-esp") {
+		// Download ESP firmware based on selected type
+		if (selectedFirmware.type === "manifest") {
 			try {
-				const downloaded = await downloadLatestESPFirmware();
-				const fileName = downloaded.fileName;
-				const firmwareData = downloaded.data;
+				const manifestConfig = ESP_FIRMWARE_MANIFESTS[selectedFirmware.manifestId];
+				if (!manifestConfig) {
+					throw new Error(`Unknown manifest ID: ${selectedFirmware.manifestId}`);
+				}
+
+				// First fetch firmware info to get download URL and metadata
+				const firmwareInfo = await fetchManifestFirmwareInfo(manifestConfig.manifestUrl, manifestConfig.changelogUrl);
+
+				// Then download the actual firmware
+				const firmwareData = await downloadFirmware(firmwareInfo.downloadUrl);
+
+				const fileName = firmwareInfo.fileName;
+				const firmwareOffset = firmwareInfo.offset;
+
+				// Update state with downloaded firmware data
 				context.setState(prev => ({
 					...prev,
 					downloadedFirmwareName: fileName,
 					downloadedFirmwareData: firmwareData,
+					downloadedFirmwareOffset: firmwareOffset,
 					currentSubStep: 1,
 					isDownloading: false,
-					isEnteringBootloader: true,
+					isEnteringBootloader: needsBootloaderMode,
 				}));
+
+				// Check if we need to enter bootloader mode or if we can proceed directly
+				if (detectedDeviceType === 'esp32' && !needsBootloaderMode) {
+					// ESP32 is already in bootloader mode, skip the bootloader entry step
+					console.log("ESP32 already in bootloader mode, proceeding directly to flashing");
+
+					// Update state to reflect flashing step
+					context.setState(prev => ({
+						...prev,
+						currentSubStep: 2,
+						isEnteringBootloader: false,
+					}));
+
+					// Start flashing immediately with the firmware data we just downloaded
+					try {
+						await flashESPFirmwareWithData(context, firmwareData, firmwareOffset);
+					} catch (error) {
+						console.error("Failed to flash ESP firmware:", error);
+					} finally {
+						context.goToStep("Summary");
+					}
+					return;
+				}
+
 			} catch (error) {
-				console.error("Failed to download latest ESP firmware:", error);
+				console.error("Failed to download manifest firmware:", error);
 				context.setState(prev => ({
 					...prev,
 					isInstalling: false,
 					installResult: "error",
-					errorMessage: `Failed to download latest ESP firmware: ${error instanceof Error ? error.message : String(error)}`,
+					errorMessage: `Failed to download firmware: ${error instanceof Error ? error.message : String(error)}`,
 				}));
 				context.goToStep("Summary");
 				return;
@@ -129,7 +173,7 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 			return;
 		}
 
-		// Enter ESP bootloader
+		// For ZWA-2 devices, enter ESP bootloader
 		try {
 			context.setState(prev => ({
 				...prev,
@@ -150,38 +194,9 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 				return;
 			}
 
-			// Create version check callback for latest ESP firmware
-			const versionCheckCallback = selectedFirmware.type === "latest-esp"
-				? async (versionInfo: string): Promise<boolean> => {
-					const currentVersion = parseESPVersion(versionInfo);
-					context.setState(prev => ({ ...prev, currentESPVersion: currentVersion }));
+			const bootloaderResult = await enterESPBootloader(serialPort);
 
-					if (currentVersion && context.state.latestESPFirmwareInfo) {
-						const needsUpdate = isVersionNewer(currentVersion, context.state.latestESPFirmwareInfo.version);
-						if (!needsUpdate) {
-							console.log(`ESP is already on latest version ${currentVersion}, no update needed`);
-							context.setState(prev => ({
-								...prev,
-								isInstalling: false,
-								installResult: "no-update-needed",
-								errorMessage: "",
-							}));
-							return false; // Signal no update needed
-						}
-						console.log(`ESP version ${currentVersion} is older than ${context.state.latestESPFirmwareInfo.version}, update needed`);
-					}
-					return true; // Continue with the update
-				}
-				: undefined;
-
-			const bootloaderResult = await enterESPBootloader(serialPort, versionCheckCallback);
-
-			if (bootloaderResult === "no-update-needed") {
-				// Version check determined no update is needed, go to summary
-				console.log("No update needed, going to summary step");
-				context.goToStep("Summary");
-				return;
-			} else if (bootloaderResult === "failed") {
+			if (bootloaderResult === "failed") {
 				// Bootloader entry failed, but continue to ESP connection step with warning
 				console.log("Bootloader entry failed, showing manual entry instructions");
 				context.setState(prev => ({
@@ -231,11 +246,22 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 }
 
 export async function flashESPFirmware(context: WizardContext<UpdateESPFirmwareState>): Promise<void> {
-	const { state: { downloadedFirmwareData } } = context;
+	const { state: { downloadedFirmwareData, downloadedFirmwareOffset } } = context;
 	const serialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;
 	const connectionType = context.connectionState.status !== 'disconnected' ? context.connectionState.type : null;
 
 	if (!downloadedFirmwareData || !serialPort || connectionType !== 'esp32') {
+		throw new Error("Missing firmware data or ESP serial port");
+	}
+
+	return flashESPFirmwareWithData(context, downloadedFirmwareData, downloadedFirmwareOffset);
+}
+
+export async function flashESPFirmwareWithData(context: WizardContext<UpdateESPFirmwareState>, firmwareData: Uint8Array, firmwareOffset: number): Promise<void> {
+	const serialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;
+	const connectionType = context.connectionState.status !== 'disconnected' ? context.connectionState.type : null;
+
+	if (!firmwareData || !serialPort || connectionType !== 'esp32') {
 		throw new Error("Missing firmware data or ESP serial port");
 	}
 
@@ -252,6 +278,11 @@ export async function flashESPFirmware(context: WizardContext<UpdateESPFirmwareS
 		};
 		const esploader = new ESPLoader(loaderOptions);
 
+		// Close the serial port. ESPLoader expects to open it itself.
+		if (serialPort.readable || serialPort.writable) {
+			await serialPort.close();
+		}
+
 		// Connect to ESP
 		await esploader.main();
 
@@ -261,11 +292,11 @@ export async function flashESPFirmware(context: WizardContext<UpdateESPFirmwareS
 			context.setState(prev => ({ ...prev, progress }));
 		};
 
-		// Flash firmware at offset 0 as specified in requirements
+		// Flash firmware at the offset specified in the manifest
 		const flashOptions: FlashOptions = {
 			fileArray: [{
-				data: esploader.ui8ToBstr(downloadedFirmwareData),
-				address: 0,
+				data: esploader.ui8ToBstr(firmwareData),
+				address: firmwareOffset,
 			}],
 			flashSize: "keep",
 			flashMode: "keep",
@@ -294,7 +325,7 @@ export async function flashESPFirmware(context: WizardContext<UpdateESPFirmwareS
 			isInstalling: false,
 			progress: 0,
 			installResult: "error",
-			errorMessage: `Failed to install ESP firmware: ${error instanceof Error ? error.message : String(error)}`,
+			errorMessage: `Failed to install firmware: ${error instanceof Error ? error.message : String(error)}`,
 		}));
 		throw error;
 	} finally {
@@ -307,7 +338,7 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 	id: "update-esp",
 	title: "Update ESP firmware",
 	description:
-		"Update the ESP bridge firmware on your ZWA-2.",
+		"Update the ESP firmware on your ZWA-2.",
 	icon: CpuChipIcon,
 	iconForeground: "text-purple-700 dark:text-purple-400",
 	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
@@ -319,23 +350,48 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 		errorMessage: "",
 		downloadedFirmwareName: null,
 		downloadedFirmwareData: null,
+		downloadedFirmwareOffset: 0,
 		currentSubStep: 0,
 		isDownloading: false,
 		isEnteringBootloader: false,
-		latestESPFirmwareInfo: null,
-		isLoadingFirmwareInfo: false,
-		currentESPVersion: null,
+		manifestInfo: null,
+		isLoadingManifestInfo: false,
 		bootloaderEntryFailed: false,
+		detectedDeviceType: null,
+		needsBootloaderMode: false,
 	}),
 	steps: [
 		{
 			name: "Connect",
-			component: ConnectStep<UpdateESPFirmwareState>,
+			component: ESPConnectStep,
 			navigationButtons: {
 				next: {
 					label: "Next",
 					disabled: (context) => context.connectionState.status !== 'connected',
 					beforeNavigate: async (context) => {
+						// Handle device detection for ESP firmware update
+						const connectionState = context.connectionState;
+						if (connectionState.status === 'connected') {
+							// Determine device type based on connection type and set appropriate state
+							let detectedDeviceType: 'zwa2' | 'esp32' | 'unknown' = 'unknown';
+							let needsBootloaderMode = false;
+
+							if (connectionState.type === 'zwa2') {
+								detectedDeviceType = 'zwa2';
+								needsBootloaderMode = true; // ZWA-2 needs to enter bootloader mode
+							} else if (connectionState.type === 'esp32') {
+								detectedDeviceType = 'esp32';
+								needsBootloaderMode = false; // ESP32 is already in bootloader mode
+							}
+
+							// Update wizard state with device detection results
+							context.setState(prev => ({
+								...prev,
+								detectedDeviceType,
+								needsBootloaderMode,
+							}));
+						}
+
 						return await context.afterConnect();
 					},
 				},
@@ -351,7 +407,7 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 				next: {
 					label: "Install",
 					disabled: (context) => !context.state.selectedFirmware ||
-						(context.state.selectedFirmware?.type === "latest-esp" && context.state.isLoadingFirmwareInfo),
+						(context.state.selectedFirmware?.type === "manifest" && context.state.isLoadingManifestInfo),
 				},
 				back: {
 					label: "Back",

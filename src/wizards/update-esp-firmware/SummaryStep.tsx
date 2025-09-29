@@ -1,8 +1,9 @@
 import type { WizardStepProps } from '../../components/Wizard';
 import type { UpdateESPFirmwareState } from './wizard';
+import { ESP_FIRMWARE_MANIFESTS } from './wizard';
 
 export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
-  const { installResult, errorMessage, currentESPVersion, latestESPFirmwareInfo } = context.state;
+  const { installResult, errorMessage, selectedFirmware } = context.state;
 
   const getResultContent = () => {
     switch (installResult) {
@@ -17,32 +18,16 @@ export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwa
           ),
           title: "ESP firmware updated successfully!",
           message: (
-            <p className="text-gray-600 dark:text-gray-300">
-              Please power-cycle your ZWA-2 now to start the new firmware.
-            </p>
-          )
-        };
-
-      case "no-update-needed":
-        return {
-          icon: (
-            <div className="text-blue-600 dark:text-blue-400 mb-4">
-              <svg className="w-16 h-16 mx-auto" fill="currentColor" viewBox="0 0 20 20">
-                <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
-              </svg>
-            </div>
-          ),
-          title: "Already up to date!",
-          message: (
             <div>
-              <p className="text-gray-600 dark:text-gray-300 mb-2">
-                The ESP in your ZWA-2 is already running the latest firmware (or newer).
+              <p className="text-gray-600 dark:text-gray-300">
+                {selectedFirmware?.type === "manifest" && ESP_FIRMWARE_MANIFESTS[selectedFirmware.manifestId]
+                  ? `${ESP_FIRMWARE_MANIFESTS[selectedFirmware.manifestId].label} has been installed successfully.`
+                  : "The firmware has been installed successfully."
+                }
               </p>
-              {currentESPVersion && latestESPFirmwareInfo && (
-                <p className="text-sm text-blue-600 dark:text-blue-400 bg-blue-50 dark:bg-blue-900/20 p-3 rounded">
-                  Current version: {currentESPVersion} (latest: {latestESPFirmwareInfo.version})
-                </p>
-              )}
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
+                Please power-cycle your ZWA-2 now to start the new firmware.
+              </p>
             </div>
           )
         };

@@ -79,3 +79,4 @@
 ## General Guidance
 - Do not modify or extend any part of the codebase unless it follows the above patterns and guidelines.
 - Always strive for clarity, maintainability, and consistency with existing code and user experience.
+- When modifying existing code, do not add wrappers or fallbacks for legacy behavior. Refactor all existing code to the new standard.

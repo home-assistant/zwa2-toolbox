@@ -1,10 +1,11 @@
 /**
- * Utility functions for downloading ESP firmware
+ * Utility functions for downloading ESP firmware from ESPHome manifest files
  */
 
 export interface ESPFirmwareDownloadResult {
 	fileName: string;
 	data: Uint8Array;
+	offset: number;
 }
 
 export class ESPFirmwareDownloadError extends Error {
@@ -17,40 +18,126 @@ export class ESPFirmwareDownloadError extends Error {
 	}
 }
 
-interface GitHubRelease {
-	tag_name: string;
-	body: string;
-	assets: GitHubAsset[];
-}
-
 export interface ESPFirmwareReleaseInfo {
 	version: string;
 	changelog: string;
+	downloadUrl: string;
+	fileName: string;
+	offset: number;
 }
 
 /**
- * Fetch the latest ESP firmware release information
- * @returns Promise resolving to version and changelog information
+ * ESPHome manifest structure
+ */
+interface ESPHomeManifest {
+	name: string;
+	version: string;
+	home_assistant_domain?: string;
+	new_install_prompt_erase?: boolean;
+	builds: ESPHomeBuild[];
+}
+
+interface ESPHomeBuild {
+	chipFamily: string;
+	ota?: {
+		path: string;
+		md5: string;
+		summary?: string;
+		release_url?: string;
+	};
+	parts: ESPHomePart[];
+}
+
+interface ESPHomePart {
+	path: string;
+	offset: number;
+}
+
+/**
+ * Fetch firmware information from an ESPHome manifest
+ * @param manifestUrl The URL of the manifest file
+ * @param changelogUrlTemplate Optional function to generate changelog URL from version
+ * @returns Promise resolving to firmware release information including download URL
  * @throws ESPFirmwareDownloadError if fetch fails
  */
-export async function fetchLatestESPFirmwareInfo(): Promise<ESPFirmwareReleaseInfo> {
+export async function fetchManifestFirmwareInfo(
+	manifestUrl: string,
+	changelogUrlTemplate?: (version: string) => string
+): Promise<ESPFirmwareReleaseInfo> {
 	try {
-		// Fetch the latest release information for ESP firmware
-		const releaseResponse = await fetch(
-			'https://api.github.com/repos/NabuCasa/zwave-esp-bridge/releases/latest'
-		);
+		const manifestResponse = await fetch(manifestUrl);
 
-		if (!releaseResponse.ok) {
+		if (!manifestResponse.ok) {
 			throw new ESPFirmwareDownloadError(
-				`Failed to fetch ESP release information: ${releaseResponse.status} ${releaseResponse.statusText}`
+				`Failed to fetch manifest: ${manifestResponse.status} ${manifestResponse.statusText}`
 			);
 		}
 
-		const release: GitHubRelease = await releaseResponse.json();
+		const manifest: ESPHomeManifest = await manifestResponse.json();
+
+		// Find the build for ESP32-S3
+		const esp32s3Build = manifest.builds.find(build => build.chipFamily === "ESP32-S3");
+		if (!esp32s3Build) {
+			throw new ESPFirmwareDownloadError(
+				"No build found for chipFamily ESP32-S3 in manifest"
+			);
+		}
+
+		// Get the first part (factory firmware)
+		const factoryPart = esp32s3Build.parts[0];
+		if (!factoryPart) {
+			throw new ESPFirmwareDownloadError(
+				"No factory firmware part found in ESP32-S3 build"
+			);
+		}
+
+		// Construct the full image URL (relative to manifest URL)
+		const manifestBaseUrl = manifestUrl.substring(0, manifestUrl.lastIndexOf('/'));
+		const downloadUrl = `${manifestBaseUrl}/${factoryPart.path}`;
+
+		// Extract filename from path
+		const fileName = factoryPart.path.split('/').pop() || 'firmware.bin';
+
+		let changelog = "No changelog available.";
+
+		// Try to get changelog from various sources
+		if (changelogUrlTemplate) {
+			// Use the provided changelog URL template
+			try {
+				const changelogUrl = changelogUrlTemplate(manifest.version);
+				
+				// Check if this is a GitHub release URL and convert to API endpoint
+				const githubReleaseMatch = changelogUrl.match(/https:\/\/github\.com\/([^/]+)\/([^/]+)\/releases\/tag\/(.+)/);
+				if (githubReleaseMatch) {
+					const [, owner, repo, tag] = githubReleaseMatch;
+					const apiUrl = `https://api.github.com/repos/${owner}/${repo}/releases/tags/${tag}`;
+					
+					const apiResponse = await fetch(apiUrl);
+					if (apiResponse.ok) {
+						const releaseData = await apiResponse.json();
+						changelog = releaseData.body || "No changelog available.";
+					}
+				} else {
+					// For non-GitHub URLs, fetch as before
+					const changelogResponse = await fetch(changelogUrl);
+					if (changelogResponse.ok) {
+						changelog = await changelogResponse.text();
+					}
+				}
+			} catch (error) {
+				console.warn("Failed to fetch changelog from URL template:", error);
+			}
+		} else if (esp32s3Build.ota?.summary) {
+			// Use the summary from the OTA section
+			changelog = esp32s3Build.ota.summary;
+		}
 
 		return {
-			version: release.tag_name,
-			changelog: release.body || 'No changelog available.',
+			version: manifest.version,
+			changelog,
+			downloadUrl,
+			fileName,
+			offset: factoryPart.offset,
 		};
 
 	} catch (error) {
@@ -58,107 +145,38 @@ export async function fetchLatestESPFirmwareInfo(): Promise<ESPFirmwareReleaseIn
 			throw error;
 		}
 		throw new ESPFirmwareDownloadError(
-			`Unexpected error during ESP firmware info fetch: ${error instanceof Error ? error.message : String(error)}`,
+			`Unexpected error during manifest firmware info fetch: ${error instanceof Error ? error.message : String(error)}`,
 			error
 		);
 	}
 }
 
-interface GitHubAsset {
-	name: string;
-	browser_download_url: string;
-	digest: string;
-}
-
 /**
- * Downloads the latest ESP bridge firmware from the GitHub repository
- * @returns Promise resolving to firmware file name and data
- * @throws ESPFirmwareDownloadError if download or verification fails
+ * Downloads firmware from a URL
+ * @param downloadUrl The URL to download the firmware from
+ * @returns Promise resolving to firmware data
+ * @throws ESPFirmwareDownloadError if download fails
  */
-export async function downloadLatestESPFirmware(): Promise<ESPFirmwareDownloadResult> {
+export async function downloadFirmware(downloadUrl: string): Promise<Uint8Array> {
 	try {
-		// Fetch the latest release information for ESP firmware
-		const releaseResponse = await fetch(
-			'https://api.github.com/repos/NabuCasa/zwave-esp-bridge/releases/latest'
-		);
-
-		if (!releaseResponse.ok) {
-			throw new ESPFirmwareDownloadError(
-				`Failed to fetch ESP release information: ${releaseResponse.status} ${releaseResponse.statusText}`
-			);
-		}
-
-		const release: GitHubRelease = await releaseResponse.json();
-
-		// Find the ZWA-2 factory.bin file in the assets
-		const binAsset = release.assets.find(asset =>
-			asset.name.toLowerCase().startsWith('zwa2') &&
-			asset.name.toLowerCase().endsWith('.factory.bin')
-		);
-
-		if (!binAsset) {
-			throw new ESPFirmwareDownloadError(
-				`No ZWA-2 factory.bin firmware file found in release ${release.tag_name}`
-			);
-		}
-
-		// Extract expected checksum from the digest field
-		// GitHub provides this in the format "sha256:hash"
-		let expectedChecksum: string | null = null;
-		if (binAsset.digest) {
-			const digestMatch = binAsset.digest.match(/^sha256:([a-fA-F0-9]{64})$/);
-			if (digestMatch) {
-				expectedChecksum = digestMatch[1];
-			}
-		}
-
-		// Download the firmware file through a CORS proxy
-		const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(binAsset.browser_download_url)}`;
-		const firmwareResponse = await fetch(proxyUrl);
+		const firmwareResponse = await fetch(downloadUrl);
 
 		if (!firmwareResponse.ok) {
 			throw new ESPFirmwareDownloadError(
-				`Failed to download ESP firmware: ${firmwareResponse.status} ${firmwareResponse.statusText}`
+				`Failed to download firmware: ${firmwareResponse.status} ${firmwareResponse.statusText}`
 			);
 		}
 
 		const firmwareArrayBuffer = await firmwareResponse.arrayBuffer();
-		const firmwareData = new Uint8Array(firmwareArrayBuffer);
-
-		// Verify checksum if available
-		if (expectedChecksum) {
-			const actualChecksum = await calculateSHA256(firmwareData);
-			if (actualChecksum.toLowerCase() !== expectedChecksum.toLowerCase()) {
-				throw new ESPFirmwareDownloadError(
-					`Checksum verification failed. Expected: ${expectedChecksum}, Got: ${actualChecksum}`
-				);
-			}
-			console.log(`✓ Firmware checksum verified: ${actualChecksum}`);
-		} else {
-			console.warn("⚠️ No checksum available for verification - proceeding without verification");
-		}
-
-		return {
-			fileName: binAsset.name,
-			data: firmwareData
-		};
+		return new Uint8Array(firmwareArrayBuffer);
 
 	} catch (error) {
 		if (error instanceof ESPFirmwareDownloadError) {
 			throw error;
 		}
 		throw new ESPFirmwareDownloadError(
-			`Unexpected error during ESP firmware download: ${error instanceof Error ? error.message : String(error)}`,
+			`Unexpected error during firmware download: ${error instanceof Error ? error.message : String(error)}`,
 			error
 		);
 	}
-}
-
-/**
- * Calculate SHA256 checksum of data using Web Crypto API
- */
-async function calculateSHA256(data: Uint8Array): Promise<string> {
-	const hashBuffer = await crypto.subtle.digest('SHA-256', data.slice());
-	const hashArray = Array.from(new Uint8Array(hashBuffer));
-	return hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
 }
