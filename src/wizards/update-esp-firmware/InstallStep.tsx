@@ -1,6 +1,6 @@
 import type { WizardStepProps } from '../../components/Wizard';
 import type { UpdateESPFirmwareState } from './wizard';
-import { flashESPFirmware } from './wizard';
+import { flashESPFirmware, ESP_FIRMWARE_MANIFESTS } from './wizard';
 import CircularProgress from '../../components/CircularProgress';
 import { LinkIcon, LinkSlashIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef, useState } from 'react';
@@ -16,7 +16,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
     isEnteringBootloader,
     currentSubStep,
     selectedFirmware,
-    latestESPFirmwareInfo,
+    manifestInfo,
     bootloaderEntryFailed,
   } = context.state;
 
@@ -83,15 +83,21 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 
   // Show indeterminate spinner if downloading
   if (isDownloading) {
+	const firmwareLabel = selectedFirmware?.type === "manifest" && ESP_FIRMWARE_MANIFESTS[selectedFirmware.manifestId]
+	  ? ESP_FIRMWARE_MANIFESTS[selectedFirmware.manifestId].label
+	  : undefined;
     return (
       <div className="text-center py-8">
         <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Download ESP firmware
+          {
+			firmwareLabel ? `Downloading ${firmwareLabel} firmware...` :
+			`Downloading firmware...`
+		  }
         </h3>
-        <p className="text-gray-600 dark:text-gray-300">
-          Downloading the latest ESP bridge firmware...
-        </p>
+        {/* <p className="text-gray-600 dark:text-gray-300">
+          Downloading firmware...
+        </p> */}
       </div>
     );
   }
@@ -199,11 +205,11 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
       <div className="text-center py-8">
         <CircularProgress progress={progress} className="mb-4" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
-          Update ESP firmware
+          Install firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
-          Installing {selectedFirmware?.type === "latest-esp" && latestESPFirmwareInfo
-            ? `ESP firmware ${latestESPFirmwareInfo.version}`
+          Installing {selectedFirmware?.type === "manifest" && manifestInfo?.[selectedFirmware.manifestId]
+            ? `${ESP_FIRMWARE_MANIFESTS[selectedFirmware.manifestId]?.label || 'firmware'} ${manifestInfo[selectedFirmware.manifestId].version}`
             : downloadedFirmwareName
           }...
         </p>
@@ -215,10 +221,10 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
   return (
     <div className="text-center py-8">
       <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
-        Update ESP firmware
+        Install firmware
       </h3>
       <p className="text-gray-600 dark:text-gray-300">
-        Ready to update ESP firmware...
+        Ready to install firmware...
       </p>
     </div>
   );

@@ -5,7 +5,7 @@ import Button from './Button';
 import type { ZWaveBinding } from '../lib/zwave';
 import { ZWaveBinding as ZWaveBindingClass } from '../lib/zwave';
 
-export type ConnectionState = 
+export type ConnectionState =
   | { status: 'disconnected' }
   | { status: 'connecting'; type: 'zwa2' | 'esp32' }
   | { status: 'connected'; port: SerialPort; type: 'zwa2' | 'esp32' };
@@ -14,6 +14,7 @@ export interface BaseWizardContext {
   connectionState: ConnectionState;
   requestZWA2SerialPort: () => Promise<boolean>;
   requestESP32SerialPort: () => Promise<boolean>;
+  requestCombinedSerialPort?: () => Promise<{ success: boolean; deviceType?: 'zwa2' | 'esp32' | 'unknown'; needsBootloaderMode?: boolean }>;
   onDisconnect?: () => Promise<void>;
 }
 

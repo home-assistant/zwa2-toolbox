@@ -56,7 +56,7 @@ function getRecoveryResult(state: RecoverAdapterState): RecoveryResult {
           <div>
             <p>Your ZWA-2 adapter is running an end device CLI firmware, which may cause it to appear unresponsive in Z-Wave controller applications.</p>
             <p className="mt-2">
-              <strong>Recommendation:</strong> Use the "Install Firmware" wizard to install the correct Z-Wave controller firmware.
+              <strong>Recommendation:</strong> Use the "Install Z-Wave firmware" wizard to install the correct Z-Wave controller firmware.
             </p>
           </div>
         )
@@ -94,7 +94,7 @@ function getRecoveryResult(state: RecoverAdapterState): RecoveryResult {
           <div>
             <p>Failed to download the latest firmware from the internet. This could be due to a network connectivity issue or the firmware repository being temporarily unavailable.</p>
             <p className="mt-2">
-              <strong>Suggestion:</strong> Check your internet connection and try again, or use the "Install Firmware" wizard to provide a custom firmware file.
+              <strong>Suggestion:</strong> Check your internet connection and try again, or use the "Install Z-Wave firmware" wizard to provide a custom firmware file.
             </p>
           </div>
         )
@@ -119,7 +119,7 @@ function getRecoveryResult(state: RecoverAdapterState): RecoveryResult {
         message: (
           <div>
             <p>Your ZWA-2 adapter is running an unknown firmware that is not recognized as a standard Z-Wave controller firmware.</p>
-            <p className="mt-2">If you want to use this adapter as a Z-Wave controller, please use the "Install Firmware" wizard to install the correct Z-Wave controller firmware.</p>
+            <p className="mt-2">If you want to use this adapter as a Z-Wave controller, please use the "Install Z-Wave firmware" wizard to install the correct Z-Wave controller firmware.</p>
           </div>
         )
       };
