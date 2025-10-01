@@ -48,11 +48,12 @@ export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFir
   }, [manifestInfo, isLoadingManifestInfo]);
 
   const handleOptionChange = useCallback((option: ESPFirmwareOption) => {
-    // When selecting a manifest option, store the actual version and label
+    // When selecting a manifest option, store the actual version, label, and wifi flag
     if (option.type === "manifest" && manifestInfo?.[option.manifestId]) {
       const manifest = ESP_FIRMWARE_MANIFESTS[option.manifestId];
       option.version = manifestInfo[option.manifestId].version;
       option.label = manifest.label;
+      option.wifi = manifest.wifi;
     }
     context.setState(prev => ({ ...prev, selectedFirmware: option }));
   }, [context, manifestInfo]);

@@ -57,6 +57,36 @@ async function writeCommand(
 }
 
 /**
+ * Waits for the ESP device to restart by monitoring the disconnect event
+ * @param serialPort The connected serial port
+ * @param timeoutMs Maximum time to wait for disconnect in milliseconds (default: 10000)
+ * @returns Promise resolving to true if device disconnected, false if timeout
+ */
+export async function awaitESPRestart(
+	serialPort: SerialPort,
+	timeoutMs: number = 10000,
+): Promise<boolean> {
+	const disconnectPromise = createDeferredPromise<void>();
+	function onDisconnect() {
+		console.log("Serial port disconnected - ESP device restarted");
+		disconnectPromise.resolve();
+	}
+
+	try {
+		serialPort.addEventListener("disconnect", onDisconnect);
+
+		// Wait for disconnect or timeout
+		const result = await Promise.race([
+			disconnectPromise.then(() => true),
+			wait(timeoutMs).then(() => false),
+		]);
+		return result;
+	} finally {
+		serialPort.removeEventListener("disconnect", onDisconnect);
+	}
+}
+
+/**
  * Enters the ESP bootloader mode on the connected device
  * @param serialPort The connected serial port
  * @param checkFirmwareInfo Optional callback called with firmware info before entering bootloader. Return false or throw to indicate no update needed.

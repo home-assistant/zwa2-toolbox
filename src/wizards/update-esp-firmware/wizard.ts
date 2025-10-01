@@ -1,6 +1,7 @@
 import { CpuChipIcon } from "@heroicons/react/24/outline";
 import FileSelectStep from "./FileSelectStep";
 import InstallStep from "./InstallStep";
+import ConfigureStep from "./ConfigureStep";
 import SummaryStep from "./SummaryStep";
 import ESPConnectStep from "./ESPConnectStep";
 import type { WizardConfig, WizardContext } from "../../components/Wizard";
@@ -32,6 +33,7 @@ export const ESP_FIRMWARE_MANIFESTS: Record<string, ESPFirmwareManifest> = {
 		description: "Allows connecting to ZWA-2 via WiFi",
 		manifestUrl: "https://firmware.esphome.io/ha-connect-zwa-2/home-assistant-zwa-2/manifest.json",
 		experimental: true,
+		wifi: true,
 	},
 };
 
@@ -41,6 +43,7 @@ export interface ESPFirmwareManifest {
 	manifestUrl: string;
 	experimental?: boolean;
 	changelogUrl?: (version: string) => string;
+	wifi?: boolean;
 }
 
 export type InstallState =
@@ -57,15 +60,26 @@ export type InstallState =
 		firmwareLabel: string;
 	}
 	| { status: "installing"; progress: number; firmwareLabel: string }
+	| { status: "waiting-for-power-cycle"; firmwareLabel: string }
 	| { status: "success"; firmwareLabel: string }
 	| { status: "error"; errorMessage: string };
 
 export type ESPFirmwareOption =
-	| { type: "manifest"; manifestId: string; version?: string; label?: string };
+	| { type: "manifest"; manifestId: string; version?: string; label?: string; wifi?: boolean };
+
+export type ConfigureState =
+	| { status: "idle" }
+	| { status: "waiting-for-startup" }
+	| { status: "ready" }
+	| { status: "provisioning"; ssid: string }
+	| { status: "success"; ssid: string }
+	| { status: "error"; errorMessage: string; previouslyFailed?: boolean }
+	| { status: "skipped" };
 
 export interface UpdateESPFirmwareState {
 	selectedFirmware: ESPFirmwareOption | null;
 	installState: InstallState;
+	configureState: ConfigureState;
 	deviceType: 'zwa2' | 'esp32' | 'unknown' | null; // Track detected device type
 }
 
@@ -125,14 +139,14 @@ export async function flashESPFirmwareWithData(
 
 		await esploader.writeFlash(flashOptions);
 
-		// Reset the ESP
+		// Reset the ESP - this will trigger a restart but not disconnect yet
 		await esploader.after();
 	} catch (error) {
 		console.error("Failed to flash ESP firmware:", error);
 		throw error;
 	} finally {
 		await transport?.disconnect().catch(() => {});
-		await context.onDisconnect?.();
+		// Note: We no longer disconnect here - the power-cycle substep will handle monitoring
 	}
 }
 
@@ -215,12 +229,11 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 			};
 
 			await flashESPFirmwareWithData(context, firmwareData, firmwareOffset, onProgress);
-			// Success/error state is set by flashESPFirmwareWithData
+			// Transition to power-cycle substep
 			context.setState((prev) => ({
 				...prev,
-				installState: { status: "success", firmwareLabel },
+				installState: { status: "waiting-for-power-cycle", firmwareLabel },
 			}));
-			context.goToStep("Summary");
 			return;
 		} else if (deviceType === 'zwa2') {
 			// ZWA-2 needs to enter bootloader mode
@@ -272,6 +285,7 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 	createInitialState: () => ({
 		selectedFirmware: null,
 		installState: { status: "idle" },
+		configureState: { status: "idle" },
 		deviceType: null,
 	}),
 	steps: [
@@ -336,6 +350,71 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 				return installState.status === "downloading" ||
 					installState.status === "entering-bootloader" ||
 					installState.status === "installing";
+			},
+		},
+		{
+			name: "Configure",
+			component: ConfigureStep,
+			onEnter: async (context) => {
+				// Check if WiFi configuration is supported by the selected firmware
+				const { selectedFirmware, installState, configureState } = context.state;
+
+				// Only allow configuration if installation was successful
+				if (installState.status !== "success") {
+					context.setState((prev) => ({
+						...prev,
+						configureState: { status: "skipped" },
+					}));
+					context.goToStep("Summary");
+					return;
+				}
+
+				// Check if the selected firmware supports WiFi configuration
+				if (!selectedFirmware?.wifi) {
+					// Skip this step if firmware doesn't support WiFi
+					context.setState((prev) => ({
+						...prev,
+						configureState: { status: "skipped" },
+					}));
+					context.goToStep("Summary");
+					return;
+				}
+
+				// If we're already in ready or error state (user came back to retry), don't wait again
+				if (configureState.status === "ready" || configureState.status === "error") {
+					return;
+				}
+
+				// Set waiting-for-startup state
+				context.setState((prev) => ({
+					...prev,
+					configureState: { status: "waiting-for-startup" },
+				}));
+
+				// Wait 15 seconds to give the firmware time to start and scan WiFi networks
+				const { wait } = await import("alcalzone-shared/async");
+				await wait(1000);
+
+				// Transition to ready state
+				context.setState((prev) => ({
+					...prev,
+					configureState: { status: "ready" },
+				}));
+
+				// Note: We no longer disconnect here - improv-wifi will manage its own connection
+			},
+			navigationButtons: {
+				next: {
+					label: "Skip",
+					beforeNavigate: async (context) => {
+						// Mark as skipped when user clicks Skip
+						context.setState((prev) => ({
+							...prev,
+							configureState: { status: "skipped" },
+						}));
+						return true;
+					},
+				},
 			},
 		},
 		{

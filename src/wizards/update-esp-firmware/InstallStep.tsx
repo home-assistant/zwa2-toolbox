@@ -39,7 +39,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 					await flashESPFirmwareWithData(context, firmwareData, firmwareOffset, onProgress);
 					context.setState((prev) => ({
 						...prev,
-						installState: { status: "success", firmwareLabel },
+						installState: { status: "waiting-for-power-cycle", firmwareLabel },
 					}));
 				} catch (error) {
 					context.setState((prev) => ({
@@ -49,8 +49,6 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 							errorMessage: error instanceof Error ? error.message : String(error)
 						},
 					}));
-				} finally {
-					context.goToStep("Summary");
 				}
 			};
 
@@ -58,6 +56,58 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 		}
 
 		prevSerialPort.current = currentSerialPort;
+	}, [context, installState]);
+
+	// Handle power-cycle waiting
+	useEffect(() => {
+		if (installState.status !== "waiting-for-power-cycle") {
+			return;
+		}
+
+		const serialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;
+		if (!serialPort) {
+			// Already disconnected, proceed to next step
+			context.setState((prev) => ({
+				...prev,
+				installState: { status: "success", firmwareLabel: installState.firmwareLabel },
+			}));
+			if (context.state.selectedFirmware?.wifi) {
+				context.goToStep("Configure");
+			} else {
+				context.goToStep("Summary");
+			}
+			return;
+		}
+
+		const waitForPowerCycle = async () => {
+			const { awaitESPRestart } = await import("../../lib/esp-utils");
+			const disconnected = await awaitESPRestart(serialPort);
+
+			if (disconnected) {
+				// Device has been power-cycled
+				await context.onDisconnect?.();
+				context.setState((prev) => ({
+					...prev,
+					installState: { status: "success", firmwareLabel: installState.firmwareLabel },
+				}));
+				if (context.state.selectedFirmware?.wifi) {
+					context.goToStep("Configure");
+				} else {
+					context.goToStep("Summary");
+				}
+			} else {
+				// Timeout - treat as error
+				context.setState((prev) => ({
+					...prev,
+					installState: {
+						status: "error",
+						errorMessage: "Timeout waiting for device to restart"
+					},
+				}));
+			}
+		};
+
+		waitForPowerCycle();
 	}, [context, installState]);
 
 	const handleESP32Connect = useCallback(async () => {
@@ -181,6 +231,21 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 					Installing {installState.firmwareLabel}...
 				</p>
 			</div>
+		);
+	}
+
+	// Show waiting for power cycle
+	if (installState.status === "waiting-for-power-cycle") {
+		return (
+			<div className="text-center py-8">
+				<div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+					Firmware installed successfully
+				</h3>
+				<p className="text-gray-600 dark:text-gray-300">
+					Please power cycle your ZWA-2 to activate the new firmware.
+				</p>
+		</div>
 		);
 	}
 
