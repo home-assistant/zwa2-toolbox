@@ -7,14 +7,16 @@ import { fetchManifestFirmwareInfo } from '../../lib/esp-firmware-download';
 import Modal from '../../components/Modal';
 
 export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
-  const { selectedFirmware, manifestInfo, isLoadingManifestInfo } = context.state;
+  const { selectedFirmware } = context.state;
   const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
   const [activeChangelogManifest, setActiveChangelogManifest] = useState<string | null>(null);
+  const [manifestInfo, setManifestInfo] = useState<Record<string, any> | null>(null);
+  const [isLoadingManifestInfo, setIsLoadingManifestInfo] = useState(false);
 
   // Fetch manifest info when component mounts
   useEffect(() => {
     if (!manifestInfo && !isLoadingManifestInfo) {
-      context.setState(prev => ({ ...prev, isLoadingManifestInfo: true }));
+      setIsLoadingManifestInfo(true);
 
       // Fetch info for all manifests
       const fetchPromises = Object.entries(ESP_FIRMWARE_MANIFESTS).map(([id, manifest]) =>
@@ -35,26 +37,22 @@ export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFir
             }
           });
 
-          context.setState(prev => ({
-            ...prev,
-            manifestInfo: manifestInfoRecord,
-            isLoadingManifestInfo: false,
-          }));
+          setManifestInfo(manifestInfoRecord);
+          setIsLoadingManifestInfo(false);
         })
         .catch(error => {
           console.error('Failed to fetch manifest info:', error);
-          context.setState(prev => ({
-            ...prev,
-            isLoadingManifestInfo: false,
-          }));
+          setIsLoadingManifestInfo(false);
         });
     }
-  }, [context, manifestInfo, isLoadingManifestInfo]);
+  }, [manifestInfo, isLoadingManifestInfo]);
 
   const handleOptionChange = useCallback((option: ESPFirmwareOption) => {
-    // When selecting a manifest option, store the actual version
+    // When selecting a manifest option, store the actual version and label
     if (option.type === "manifest" && manifestInfo?.[option.manifestId]) {
+      const manifest = ESP_FIRMWARE_MANIFESTS[option.manifestId];
       option.version = manifestInfo[option.manifestId].version;
+      option.label = manifest.label;
     }
     context.setState(prev => ({ ...prev, selectedFirmware: option }));
   }, [context, manifestInfo]);

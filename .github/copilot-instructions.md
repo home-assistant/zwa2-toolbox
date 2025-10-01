@@ -26,6 +26,9 @@
 ## State Management
 - Group related states (e.g., serialport instance + device type) together, not as separate states.
 - Use typestate patterns based on tagged union types for wizard step state. Avoid creating new, independent states for short-lived or step-specific data.
+- For multi-phase workflows within a step, use discriminated unions (tagged unions) with a `status` field to combine substep tracking, progress, results, and errors into a single state object. Each status variant should carry only the data relevant to that phase.
+- Orchestrate multi-phase workflows using wizard `onEnter` hooks rather than component `useEffect` hooks for better reliability and testability.
+- Step components should be primarily display-only, reading from the tagged union state and rendering appropriate UI for each status variant.
 - Always consider the asynchronous nature of React state management when writing code that reads/writes state.
 
 ## Comments & Documentation
