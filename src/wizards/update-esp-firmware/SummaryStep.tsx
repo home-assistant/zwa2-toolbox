@@ -2,7 +2,7 @@ import type { WizardStepProps } from '../../components/Wizard';
 import type { UpdateESPFirmwareState } from './wizard';
 
 export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
-  const { installState } = context.state;
+  const { installState, configureState } = context.state;
 
   const getResultContent = () => {
     if (installState.status === "success") {
@@ -20,9 +20,16 @@ export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwa
             <p className="text-gray-600 dark:text-gray-300">
               {installState.firmwareLabel} has been installed successfully.
             </p>
-            <p className="text-gray-600 dark:text-gray-300 mt-2">
-              Please power-cycle your ZWA-2 now to start the new firmware.
-            </p>
+            {configureState.status === "skipped" && (
+              <p className="text-gray-600 dark:text-gray-300 mt-2">
+                WiFi configuration was skipped. You can configure WiFi later using the Provision WiFi wizard.
+              </p>
+            )}
+            {configureState.status === "error" && (
+              <p className="text-yellow-600 dark:text-yellow-400 mt-2">
+                WiFi configuration failed, but the firmware was installed successfully. You can configure WiFi later using the Provision WiFi wizard.
+              </p>
+            )}
           </div>
         )
       };
