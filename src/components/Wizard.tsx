@@ -202,7 +202,9 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
     };
 
     handleStepEntry();
-  }, [currentStepIndex, currentStep, context]);
+    // Only run when the step actually changes, not when context changes
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [currentStepIndex]);
 
   const handleNext = async () => {
     const nextButton = currentStep.navigationButtons?.next;

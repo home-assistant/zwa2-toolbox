@@ -20,11 +20,6 @@ export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwa
             <p className="text-gray-600 dark:text-gray-300">
               {installState.firmwareLabel} has been installed successfully.
             </p>
-            {configureState.status === "success" && (
-              <p className="text-gray-600 dark:text-gray-300 mt-2">
-                WiFi has been configured. Your ZWA-2 is connected to <span className="font-medium">{configureState.ssid}</span>.
-              </p>
-            )}
             {configureState.status === "skipped" && (
               <p className="text-gray-600 dark:text-gray-300 mt-2">
                 WiFi configuration was skipped. You can configure WiFi later using the Provision WiFi wizard.

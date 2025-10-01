@@ -391,9 +391,9 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 					configureState: { status: "waiting-for-startup" },
 				}));
 
-				// Wait 15 seconds to give the firmware time to start and scan WiFi networks
+				// Wait 10 seconds to give the firmware time to start and scan WiFi networks
 				const { wait } = await import("alcalzone-shared/async");
-				await wait(1000);
+				await wait(10000);
 
 				// Transition to ready state
 				context.setState((prev) => ({
@@ -414,6 +414,7 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 						}));
 						return true;
 					},
+					disabled: (context) => context.state.configureState.status === 'waiting-for-startup'
 				},
 			},
 		},

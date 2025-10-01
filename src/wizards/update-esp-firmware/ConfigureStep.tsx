@@ -29,19 +29,21 @@ interface ImprovClosedEvent extends CustomEvent {
 
 export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
 	const improvButtonRef = useRef<HTMLElement | null>(null);
-	const handledClosedRef = useRef<boolean>(false);
+	const navigatedToSummaryRef = useRef<boolean>(false);
 
 	// Extract stable references from context
 	const setState = context.setState;
-	const goToStep = context.goToStep;
 	const configureState = context.state.configureState;
 
 	// Auto-navigate to Summary after successful provisioning
+	// Only include configureState.status in dependencies to avoid infinite loops
 	useEffect(() => {
-		if (configureState.status === 'success') {
-			goToStep('Summary');
+		if (configureState.status === 'success' && !navigatedToSummaryRef.current) {
+			navigatedToSummaryRef.current = true;
+			context.goToStep('Summary');
 		}
-	}, [configureState.status, goToStep]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [configureState.status]);
 
 	// Set up event listener for the improv-wifi component
 	useEffect(() => {
@@ -56,12 +58,6 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 		}
 
 		const handleClosed = (event: Event) => {
-			// Only handle the closed event once
-			if (handledClosedRef.current) {
-				return;
-			}
-			handledClosedRef.current = true;
-
 			const improvEvent = event as ImprovClosedEvent;
 			const { improv, provisioned } = improvEvent.detail;
 
@@ -77,20 +73,20 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 				}));
 				// Don't navigate automatically on error - allow retry
 			} else if (provisioned) {
-				// Successfully provisioned
+				// Successfully provisioned WiFi credentials
 				setState((prev) => ({
 					...prev,
 					configureState: { status: 'success', ssid: 'configured network' },
 				}));
-				// Don't navigate here - let the useEffect below handle it
+				// Navigation to Summary will be handled by the useEffect above
 			} else {
-				// Dialog was closed without provisioning
+				// Dialog was closed without provisioning (user cancelled)
 				setState((prev) => ({
 					...prev,
 					configureState: { status: 'skipped' },
 				}));
 				// Navigate to Summary when user explicitly skips
-				goToStep('Summary');
+				context.goToStep('Summary');
 			}
 		};
 
@@ -99,7 +95,8 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 		return () => {
 			improvButton.removeEventListener('closed', handleClosed);
 		};
-	}, [setState, goToStep, configureState.status]);
+		// eslint-disable-next-line react-hooks/exhaustive-deps
+	}, [setState, configureState.status]);
 
 	// Show waiting for startup spinner
 	if (configureState.status === 'waiting-for-startup') {
@@ -107,7 +104,7 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 			<div className="text-center py-8">
 				<div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
 				<p className="text-gray-600 dark:text-gray-300">
-					Set up WiFi credentials for your ZWA-2
+					Please wait for the firmware to start...
 				</p>
 			</div>
 		);
