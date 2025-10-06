@@ -466,6 +466,7 @@ export const updateESPBridgeWizardConfig: WizardConfig<UpdateESPFirmwareState> =
 	icon: CpuChipIcon,
 	iconForeground: "text-purple-700 dark:text-purple-400",
 	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
+	standalone: true,
 	createInitialState: () => {
 		const manifestId = "usb_bridge";
 		const manifest = ESP_FIRMWARE_MANIFESTS[manifestId];
@@ -510,6 +511,7 @@ export const updateESPHomeWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
 	icon: CpuChipIcon,
 	iconForeground: "text-purple-700 dark:text-purple-400",
 	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
+	standalone: true,
 	createInitialState: () => {
 		const manifest = ESP_FIRMWARE_MANIFESTS.esphome;
 		return {
