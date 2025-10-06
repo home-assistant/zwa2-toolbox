@@ -110,20 +110,22 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 		waitForPowerCycle();
 	}, [context, installState]);
 
+	// Auto-navigate on success or error (failsafe in case power-cycle effect doesn't trigger)
+	useEffect(() => {
+		if (installState.status === "success") {
+			if (context.state.selectedFirmware?.wifi) {
+				context.goToStep("Configure");
+			} else {
+				context.goToStep("Summary");
+			}
+		} else if (installState.status === "error") {
+			context.goToStep("Summary");
+		}
+	}, [context, installState.status]);
+
 	const handleESP32Connect = useCallback(async () => {
 		await context.requestESP32SerialPort();
 	}, [context]);
-
-	// Show completion state
-	if (installState.status === "success" || installState.status === "error") {
-		return (
-			<div className="text-center py-8">
-				<div className="text-gray-600 dark:text-gray-300">
-					<p>Installation process completed. Click "Next" to see the results.</p>
-				</div>
-			</div>
-		);
-	}
 
 	// Show downloading spinner
 	if (installState.status === "downloading") {

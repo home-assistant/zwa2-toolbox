@@ -62,6 +62,7 @@ export interface WizardConfig<T = unknown> {
   iconBackground: string;
   steps: WizardStepConfig<T>[];
   createInitialState: () => T;
+  standalone?: boolean;
 }
 
 interface WizardProps<T = unknown> {
@@ -275,9 +276,10 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
   const backButton = currentStep.navigationButtons?.back;
   const cancelButton = currentStep.navigationButtons?.cancel;
 
-  const showNext = nextButton !== undefined;
+  // Hide finish and cancel button on standalone wizards
+  const showNext = nextButton !== undefined && !(config.standalone && currentStep.isFinal);
   const showBack = !isFirstStep && backButton !== undefined && !currentStep.isFinal;
-  const showCancel = cancelButton !== undefined && !currentStep.isFinal;
+  const showCancel = cancelButton !== undefined && !currentStep.isFinal && !config.standalone;
 
   const nextDisabled = nextButton?.disabled?.(context) ?? false;
   const backDisabled = backButton?.disabled?.(context) ?? false;

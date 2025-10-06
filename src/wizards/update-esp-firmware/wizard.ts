@@ -22,7 +22,7 @@ export const COMBINED_DEVICE_FILTERS = [
  * Available ESP firmware manifests
  */
 export const ESP_FIRMWARE_MANIFESTS: Record<string, ESPFirmwareManifest> = {
-	usb: {
+	usb_bridge: {
 		label: "USB Bridge",
 		description: "The default firmware that comes pre-installed on the ZWA-2.",
 		manifestUrl: "https://firmware.esphome.io/ha-connect-zwa-2/zwave-esp-bridge/manifest.json",
@@ -274,6 +274,143 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 	}
 }
 
+async function handleConnectStepBeforeNavigate(context: WizardContext<UpdateESPFirmwareState>): Promise<boolean> {
+	// Handle device detection for ESP firmware update
+	const connectionState = context.connectionState;
+	if (connectionState.status === 'connected') {
+		// Determine device type based on connection type
+		let deviceType: 'zwa2' | 'esp32' | 'unknown' = 'unknown';
+
+		if (connectionState.type === 'zwa2') {
+			deviceType = 'zwa2';
+		} else if (connectionState.type === 'esp32') {
+			deviceType = 'esp32';
+		}
+
+		// Update wizard state with device detection results
+		context.setState(prev => ({
+			...prev,
+			deviceType,
+		}));
+	}
+
+	return await context.afterConnect();
+}
+
+function blockNavigationDuringInstall(context: WizardContext<UpdateESPFirmwareState>): boolean {
+	const { installState } = context.state;
+	// Block navigation during critical operations: downloading, entering bootloader, or installing
+	return installState.status === "downloading" ||
+		installState.status === "entering-bootloader" ||
+		installState.status === "installing";
+}
+
+async function handleConfigureStepEntry(context: WizardContext<UpdateESPFirmwareState>): Promise<void> {
+	// Check if WiFi configuration is supported by the selected firmware
+	const { selectedFirmware, installState, configureState } = context.state;
+
+	// Only allow configuration if installation was successful
+	if (installState.status !== "success") {
+		context.setState((prev) => ({
+			...prev,
+			configureState: { status: "skipped" },
+		}));
+		context.goToStep("Summary");
+		return;
+	}
+
+	// Check if the selected firmware supports WiFi configuration
+	if (!selectedFirmware?.wifi) {
+		// Skip this step if firmware doesn't support WiFi
+		context.setState((prev) => ({
+			...prev,
+			configureState: { status: "skipped" },
+		}));
+		context.goToStep("Summary");
+		return;
+	}
+
+	// If we're already in ready or error state (user came back to retry), don't wait again
+	if (configureState.status === "ready" || configureState.status === "error") {
+		return;
+	}
+
+	// Set waiting-for-startup state
+	context.setState((prev) => ({
+		...prev,
+		configureState: { status: "waiting-for-startup" },
+	}));
+
+	// Wait 10 seconds to give the firmware time to start and scan WiFi networks
+	const { wait } = await import("alcalzone-shared/async");
+	await wait(10000);
+
+	// Transition to ready state
+	context.setState((prev) => ({
+		...prev,
+		configureState: { status: "ready" },
+	}));
+
+	// Note: We no longer disconnect here - improv-wifi will manage its own connection
+}
+
+async function handleConfigureStepSkip(context: WizardContext<UpdateESPFirmwareState>): Promise<boolean> {
+	// Mark as skipped when user clicks Skip
+	context.setState((prev) => ({
+		...prev,
+		configureState: { status: "skipped" },
+	}));
+	return true;
+}
+
+async function handleSummaryStepFinish(context: WizardContext<UpdateESPFirmwareState>): Promise<boolean> {
+	// Disconnect the ESP32 serial port when finishing the wizard
+	if (context.onDisconnect) {
+		await context.onDisconnect();
+	}
+	return true;
+}
+
+// Navigation button configurations
+const connectStepButtons = {
+	next: {
+		label: "Next",
+		disabled: (context: WizardContext<UpdateESPFirmwareState>) => context.connectionState.status !== 'connected',
+		beforeNavigate: handleConnectStepBeforeNavigate,
+	},
+	cancel: {
+		label: "Cancel",
+	},
+};
+
+const fileSelectStepButtons = {
+	next: {
+		label: "Install",
+		disabled: (context: WizardContext<UpdateESPFirmwareState>) => !context.state.selectedFirmware,
+	},
+	back: {
+		label: "Back",
+	},
+	cancel: {
+		label: "Cancel",
+	},
+};
+
+const configureStepButtons = {
+	next: {
+		label: "Skip",
+		beforeNavigate: handleConfigureStepSkip,
+		disabled: (context: WizardContext<UpdateESPFirmwareState>) => context.state.configureState.status === 'waiting-for-startup'
+	},
+};
+
+const summaryStepButtons = {
+	next: {
+		label: "Finish",
+		beforeNavigate: handleSummaryStepFinish,
+	},
+};
+
 export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
 	id: "update-esp",
 	title: "Update ESP firmware",
@@ -292,148 +429,126 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 		{
 			name: "Connect",
 			component: ESPConnectStep,
-			navigationButtons: {
-				next: {
-					label: "Next",
-					disabled: (context) => context.connectionState.status !== 'connected',
-					beforeNavigate: async (context) => {
-						// Handle device detection for ESP firmware update
-						const connectionState = context.connectionState;
-						if (connectionState.status === 'connected') {
-							// Determine device type based on connection type
-							let deviceType: 'zwa2' | 'esp32' | 'unknown' = 'unknown';
-
-							if (connectionState.type === 'zwa2') {
-								deviceType = 'zwa2';
-							} else if (connectionState.type === 'esp32') {
-								deviceType = 'esp32';
-							}
-
-							// Update wizard state with device detection results
-							context.setState(prev => ({
-								...prev,
-								deviceType,
-							}));
-						}
-
-						return await context.afterConnect();
-					},
-				},
-				cancel: {
-					label: "Cancel",
-				},
-			},
+			navigationButtons: connectStepButtons,
 		},
 		{
 			name: "Select firmware",
 			component: FileSelectStep,
-			navigationButtons: {
-				next: {
-					label: "Install",
-					disabled: (context) => !context.state.selectedFirmware,
-				},
-				back: {
-					label: "Back",
-				},
-				cancel: {
-					label: "Cancel",
-				},
-			},
+			navigationButtons: fileSelectStepButtons,
 		},
 		{
 			name: "Install firmware",
 			component: InstallStep,
 			onEnter: handleInstallStepEntry,
-			blockBrowserNavigation: (context) => {
-				const { installState } = context.state;
-				// Block navigation during critical operations: downloading, entering bootloader, or installing
-				return installState.status === "downloading" ||
-					installState.status === "entering-bootloader" ||
-					installState.status === "installing";
-			},
+			blockBrowserNavigation: blockNavigationDuringInstall,
 		},
 		{
 			name: "Configure",
 			component: ConfigureStep,
-			onEnter: async (context) => {
-				// Check if WiFi configuration is supported by the selected firmware
-				const { selectedFirmware, installState, configureState } = context.state;
-
-				// Only allow configuration if installation was successful
-				if (installState.status !== "success") {
-					context.setState((prev) => ({
-						...prev,
-						configureState: { status: "skipped" },
-					}));
-					context.goToStep("Summary");
-					return;
-				}
-
-				// Check if the selected firmware supports WiFi configuration
-				if (!selectedFirmware?.wifi) {
-					// Skip this step if firmware doesn't support WiFi
-					context.setState((prev) => ({
-						...prev,
-						configureState: { status: "skipped" },
-					}));
-					context.goToStep("Summary");
-					return;
-				}
-
-				// If we're already in ready or error state (user came back to retry), don't wait again
-				if (configureState.status === "ready" || configureState.status === "error") {
-					return;
-				}
-
-				// Set waiting-for-startup state
-				context.setState((prev) => ({
-					...prev,
-					configureState: { status: "waiting-for-startup" },
-				}));
-
-				// Wait 10 seconds to give the firmware time to start and scan WiFi networks
-				const { wait } = await import("alcalzone-shared/async");
-				await wait(10000);
-
-				// Transition to ready state
-				context.setState((prev) => ({
-					...prev,
-					configureState: { status: "ready" },
-				}));
-
-				// Note: We no longer disconnect here - improv-wifi will manage its own connection
-			},
-			navigationButtons: {
-				next: {
-					label: "Skip",
-					beforeNavigate: async (context) => {
-						// Mark as skipped when user clicks Skip
-						context.setState((prev) => ({
-							...prev,
-							configureState: { status: "skipped" },
-						}));
-						return true;
-					},
-					disabled: (context) => context.state.configureState.status === 'waiting-for-startup'
-				},
-			},
+			onEnter: handleConfigureStepEntry,
+			navigationButtons: configureStepButtons,
 		},
 		{
 			name: "Summary",
 			component: SummaryStep,
 			isFinal: true,
-			navigationButtons: {
-				next: {
-					label: "Finish",
-					beforeNavigate: async (context) => {
-						// Disconnect the ESP32 serial port when finishing the wizard
-						if (context.onDisconnect) {
-							await context.onDisconnect();
-						}
-						return true;
-					},
-				},
+			navigationButtons: summaryStepButtons,
+		},
+	],
+};
+
+// Specialized wizard for updating ESP Bridge firmware only
+export const installESPBridgeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
+	id: "update-esp-bridge",
+	title: "Install USB Bridge firmware",
+	description:
+		"The default firmware that comes pre-installed on the ZWA-2.",
+	icon: CpuChipIcon,
+	iconForeground: "text-purple-700 dark:text-purple-400",
+	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
+	standalone: true,
+	createInitialState: () => {
+		const manifestId = "usb_bridge";
+		const manifest = ESP_FIRMWARE_MANIFESTS[manifestId];
+		return {
+			selectedFirmware: {
+				type: "manifest",
+				manifestId,
+				label: manifest.label,
 			},
+			installState: { status: "idle" },
+			configureState: { status: "idle" },
+			deviceType: null,
+		};
+	},
+	steps: [
+		{
+			name: "Connect",
+			component: ESPConnectStep,
+			navigationButtons: connectStepButtons,
+		},
+		{
+			name: "Install firmware",
+			component: InstallStep,
+			onEnter: handleInstallStepEntry,
+			blockBrowserNavigation: blockNavigationDuringInstall,
+		},
+		{
+			name: "Summary",
+			component: SummaryStep,
+			isFinal: true,
+			navigationButtons: summaryStepButtons,
+		},
+	],
+};
+
+// Specialized wizard for updating ESPHome (Portable Z-Wave) firmware only
+export const installESPHomeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
+	id: "install-esphome",
+	title: "Install Portable Z-Wave firmware",
+	description:
+		"Allows connecting to ZWA-2 via WiFi.",
+	icon: CpuChipIcon,
+	iconForeground: "text-purple-700 dark:text-purple-400",
+	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
+	standalone: true,
+	createInitialState: () => {
+		const manifest = ESP_FIRMWARE_MANIFESTS.esphome;
+		return {
+			selectedFirmware: {
+				type: "manifest",
+				manifestId: "esphome",
+				label: manifest.label,
+				wifi: true,
+			},
+			installState: { status: "idle" },
+			configureState: { status: "idle" },
+			deviceType: null,
+		};
+	},
+	steps: [
+		{
+			name: "Connect",
+			component: ESPConnectStep,
+			navigationButtons: connectStepButtons,
+		},
+		{
+			name: "Install firmware",
+			component: InstallStep,
+			onEnter: handleInstallStepEntry,
+			blockBrowserNavigation: blockNavigationDuringInstall,
+		},
+		{
+			name: "Configure",
+			component: ConfigureStep,
+			onEnter: handleConfigureStepEntry,
+			navigationButtons: configureStepButtons,
+		},
+		{
+			name: "Summary",
+			component: SummaryStep,
+			isFinal: true,
+			navigationButtons: summaryStepButtons,
 		},
 	],
 };

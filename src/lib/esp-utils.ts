@@ -59,12 +59,12 @@ async function writeCommand(
 /**
  * Waits for the ESP device to restart by monitoring the disconnect event
  * @param serialPort The connected serial port
- * @param timeoutMs Maximum time to wait for disconnect in milliseconds (default: 10000)
+ * @param timeoutMs Maximum time to wait for disconnect in milliseconds
  * @returns Promise resolving to true if device disconnected, false if timeout
  */
 export async function awaitESPRestart(
 	serialPort: SerialPort,
-	timeoutMs: number = 10000,
+	timeoutMs?: number,
 ): Promise<boolean> {
 	const disconnectPromise = createDeferredPromise<void>();
 	function onDisconnect() {
@@ -76,11 +76,15 @@ export async function awaitESPRestart(
 		serialPort.addEventListener("disconnect", onDisconnect);
 
 		// Wait for disconnect or timeout
-		const result = await Promise.race([
-			disconnectPromise.then(() => true),
-			wait(timeoutMs).then(() => false),
-		]);
-		return result;
+		if (timeoutMs) {
+			return await Promise.race([
+				disconnectPromise.then(() => true),
+				wait(timeoutMs).then(() => false),
+			]);
+		} else {
+			await disconnectPromise;
+			return true;
+		}
 	} finally {
 		serialPort.removeEventListener("disconnect", onDisconnect);
 	}
