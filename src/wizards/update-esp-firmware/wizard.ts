@@ -458,11 +458,11 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 };
 
 // Specialized wizard for updating ESP Bridge firmware only
-export const updateESPBridgeWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
+export const installESPBridgeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
 	id: "update-esp-bridge",
 	title: "Install USB Bridge firmware",
 	description:
-		"Update the USB Bridge firmware (default firmware) on your ZWA-2.",
+		"The default firmware that comes pre-installed on the ZWA-2.",
 	icon: CpuChipIcon,
 	iconForeground: "text-purple-700 dark:text-purple-400",
 	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
@@ -503,11 +503,11 @@ export const updateESPBridgeWizardConfig: WizardConfig<UpdateESPFirmwareState> =
 };
 
 // Specialized wizard for updating ESPHome (Portable Z-Wave) firmware only
-export const updateESPHomeWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
-	id: "update-esphome",
+export const installESPHomeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
+	id: "install-esphome",
 	title: "Install Portable Z-Wave firmware",
 	description:
-		"Update the Portable Z-Wave (ESPHome) firmware on your ZWA-2 to enable WiFi connectivity.",
+		"Allows connecting to ZWA-2 via WiFi.",
 	icon: CpuChipIcon,
 	iconForeground: "text-purple-700 dark:text-purple-400",
 	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
