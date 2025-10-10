@@ -12,14 +12,10 @@ function InstallESPBridgeFirmwareWizard() {
 	return (
 		<>
 			<style>{styles}</style>
-			<div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
-				<div className="max-w-4xl mx-auto">
-					<Wizard
-						config={updateESPBridgeWizardConfig}
-						baseContext={baseContext}
-					/>
-				</div>
-			</div>
+			<Wizard
+				config={updateESPBridgeWizardConfig}
+				baseContext={baseContext}
+			/>
 		</>
 	);
 }
@@ -32,6 +28,9 @@ const InstallESPBridgeFirmwareWebComponent = r2wc(
 );
 
 // Register the web component
-customElements.define("install-esp-bridge-firmware", InstallESPBridgeFirmwareWebComponent);
+customElements.define(
+	"install-esp-bridge-firmware",
+	InstallESPBridgeFirmwareWebComponent,
+);
 
 export default InstallESPBridgeFirmwareWizard;

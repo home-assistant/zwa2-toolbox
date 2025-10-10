@@ -12,14 +12,10 @@ function InstallESPHomeFirmwareWizard() {
 	return (
 		<>
 			<style>{styles}</style>
-			<div className="min-h-screen bg-gray-100 dark:bg-gray-900 py-8 px-4">
-				<div className="max-w-4xl mx-auto">
-					<Wizard
-						config={updateESPHomeWizardConfig}
-						baseContext={baseContext}
-					/>
-				</div>
-			</div>
+			<Wizard
+				config={updateESPHomeWizardConfig}
+				baseContext={baseContext}
+			/>
 		</>
 	);
 }

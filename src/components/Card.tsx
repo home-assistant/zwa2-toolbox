@@ -22,7 +22,7 @@ interface CardFooterProps {
 
 export function Card({ children, className = '' }: CardProps) {
   return (
-    <div className={`divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm dark:divide-white/10 dark:bg-gray-800/50 dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-white/10 ${className}`}>
+    <div className={`divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm dark:divide-white/10 dark:bg-gray-800 dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-white/10 ${className}`}>
       {children}
     </div>
   );
