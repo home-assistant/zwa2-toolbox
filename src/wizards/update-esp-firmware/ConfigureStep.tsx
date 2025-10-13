@@ -103,7 +103,7 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 	if (configureState.status === 'waiting-for-startup') {
 		return (
 			<div className="text-center py-8">
-				<Spinner className="mx-auto mb-4" color="border-purple-600" />
+				<Spinner className="mx-auto mb-4" />
 				<p className="text-gray-600 dark:text-gray-300">
 					Please wait for the firmware to start...
 				</p>

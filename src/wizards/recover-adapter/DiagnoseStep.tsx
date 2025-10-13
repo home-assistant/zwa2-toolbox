@@ -47,7 +47,7 @@ export default function DiagnoseStep({ context }: WizardStepProps<RecoverAdapter
   if (isDiagnosing) {
     return (
       <div className="text-center py-8">
-        <Spinner className="mx-auto mb-4" color="border-orange-600" />
+        <Spinner className="mx-auto mb-4" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
           Diagnosing Adapter
         </h3>

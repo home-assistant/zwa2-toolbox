@@ -5,8 +5,8 @@ interface SpinnerProps {
    */
   size?: string;
   /**
-   * Color of the spinner border as a full Tailwind class (e.g., 'border-purple-600', 'border-indigo-600')
-   * @default 'border-purple-600'
+   * Color of the spinner border as a full Tailwind class (e.g., 'border-blue-600', 'border-indigo-600')
+   * @default 'border-blue-600'
    */
   color?: string;
   /**
@@ -15,7 +15,7 @@ interface SpinnerProps {
   className?: string;
 }
 
-export default function Spinner({ size = 'h-16 w-16', color = 'border-purple-600', className = '' }: SpinnerProps) {
+export default function Spinner({ size = 'h-16 w-16', color = 'border-blue-600', className = '' }: SpinnerProps) {
   return (
     <div
       className={`animate-spin rounded-full border-b-2 ${size} ${color} ${className}`}
