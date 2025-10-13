@@ -5,6 +5,7 @@ import type { UpdateESPFirmwareState } from './wizard';
 import { flashESPFirmwareWithData } from './wizard';
 import CircularProgress from '../../components/CircularProgress';
 import Alert from '../../components/Alert';
+import Spinner from '../../components/Spinner';
 
 export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
 	const { installState } = context.state;
@@ -131,7 +132,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 	if (installState.status === "downloading") {
 		return (
 			<div className="text-center py-8">
-				<div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+				<Spinner className="mx-auto mb-4" color="border-purple-600" />
 				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
 					Downloading {installState.firmwareLabel} firmware...
 				</h3>
@@ -143,7 +144,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 	if (installState.status === "entering-bootloader") {
 		return (
 			<div className="text-center py-8">
-				<div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+				<Spinner className="mx-auto mb-4" color="border-purple-600" />
 				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
 					Enter bootloader
 				</h3>
@@ -240,7 +241,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 	if (installState.status === "waiting-for-power-cycle") {
 		return (
 			<div className="text-center py-8">
-				<div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+				<Spinner className="mx-auto mb-4" color="border-purple-600" />
 				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
 					Firmware installed successfully
 				</h3>

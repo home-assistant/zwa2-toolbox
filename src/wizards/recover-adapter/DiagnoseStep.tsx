@@ -1,6 +1,7 @@
 import type { WizardStepProps } from '../../components/Wizard';
 import type { RecoverAdapterState, DiagnosisResult } from './wizard';
 import Alert from '../../components/Alert';
+import Spinner from '../../components/Spinner';
 
 function DiagnosisResultDisplay({ result }: { result: DiagnosisResult }) {
   switch (result.tag) {
@@ -46,7 +47,7 @@ export default function DiagnoseStep({ context }: WizardStepProps<RecoverAdapter
   if (isDiagnosing) {
     return (
       <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-orange-600 mx-auto mb-4"></div>
+        <Spinner className="mx-auto mb-4" color="border-orange-600" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
           Diagnosing Adapter
         </h3>

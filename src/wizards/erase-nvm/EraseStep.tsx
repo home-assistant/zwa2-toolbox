@@ -1,6 +1,7 @@
 import type { WizardStepProps } from '../../components/Wizard';
 import SubStepProgress from '../../components/SubStepProgress';
 import type { EraseNVMState } from './wizard';
+import Spinner from '../../components/Spinner';
 
 const subStepNames = [
   'Detect application',
@@ -25,7 +26,7 @@ export default function EraseStep({ context }: WizardStepProps<EraseNVMState>) {
 
       {isErasing && (
         <div className="text-center mt-6">
-          <div className="inline-block animate-spin rounded-full h-8 w-8 border-b-2 border-indigo-600 mb-4"></div>
+          <Spinner size="h-8 w-8" color="border-indigo-600" className="inline-block mb-4" />
           <p className="text-gray-600 dark:text-gray-300">
             Erasing NVM data... Please do not disconnect the device.
           </p>
