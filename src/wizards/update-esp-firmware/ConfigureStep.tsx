@@ -4,6 +4,7 @@ import type { WizardStepProps } from '../../components/Wizard';
 import type { UpdateESPFirmwareState } from './wizard';
 import 'improv-wifi-serial-sdk/dist/web/serial-launch-button';
 import Alert from '../../components/Alert';
+import Spinner from '../../components/Spinner';
 
 // Extend JSX to include the custom element
 declare module 'react' {
@@ -102,7 +103,7 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 	if (configureState.status === 'waiting-for-startup') {
 		return (
 			<div className="text-center py-8">
-				<div className="animate-spin rounded-full h-16 w-16 border-b-2 border-purple-600 mx-auto mb-4"></div>
+				<Spinner className="mx-auto mb-4" color="border-purple-600" />
 				<p className="text-gray-600 dark:text-gray-300">
 					Please wait for the firmware to start...
 				</p>

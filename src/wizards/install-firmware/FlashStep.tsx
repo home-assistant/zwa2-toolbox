@@ -1,6 +1,7 @@
 import type { WizardStepProps } from '../../components/Wizard';
 import type { InstallFirmwareState } from './wizard';
 import CircularProgress from '../../components/CircularProgress';
+import Spinner from '../../components/Spinner';
 
 export default function FlashStep({ context }: WizardStepProps<InstallFirmwareState>) {
   const { isFlashing, progress, flashResult, downloadedFirmwareName, isDownloading } = context.state;
@@ -20,7 +21,7 @@ export default function FlashStep({ context }: WizardStepProps<InstallFirmwareSt
   if (isDownloading || !downloadedFirmwareName) {
     return (
       <div className="text-center py-8">
-        <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-indigo-600 mx-auto mb-4"></div>
+        <Spinner className="mx-auto mb-4" color="border-indigo-600" />
         <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
           Install Firmware
         </h3>
