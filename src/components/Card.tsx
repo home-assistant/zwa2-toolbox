@@ -27,12 +27,12 @@ export function Card({
 	standalone = false,
 }: CardProps) {
 	const borderStyles = standalone
-		? ""
-		: "rounded-2xl shadow-sm dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-app-border";
+		? "rounded-2xl"
+		: "rounded-lg dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-app-border";
 
 	return (
 		<div
-			className={`divide-y divide-app-border overflow-hidden bg-app-card ${borderStyles} ${className}`}
+			className={`divide-y divide-app-border overflow-hidden bg-app-card shadow-md ${borderStyles} ${className}`}
 		>
 			{children}
 		</div>
