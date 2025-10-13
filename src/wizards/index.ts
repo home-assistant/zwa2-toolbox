@@ -1,8 +1,8 @@
 import { installFirmwareWizardConfig } from "./install-firmware";
 import {
 	updateESPFirmwareWizardConfig,
-	updateESPBridgeWizardConfig,
-	updateESPHomeWizardConfig,
+	// updateESPBridgeWizardConfig,
+	// updateESPHomeWizardConfig,
 } from "./update-esp-firmware";
 // import { updateFirmwareWizardConfig } from './update-firmware';
 // import { eraseNVMWizardConfig } from './erase-nvm';
@@ -13,8 +13,8 @@ export const wizards = [
 	updateESPFirmwareWizardConfig,
 	//   updateFirmwareWizardConfig,
 	recoverAdapterWizardConfig,
-	updateESPBridgeWizardConfig,
-	updateESPHomeWizardConfig,
+	// updateESPBridgeWizardConfig,
+	// updateESPHomeWizardConfig,
 	//   eraseNVMWizardConfig,
 ] as const;
 
