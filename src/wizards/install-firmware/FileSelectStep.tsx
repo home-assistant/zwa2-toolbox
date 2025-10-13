@@ -36,7 +36,7 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
             className={`relative flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
               isSelected(option.value)
                 ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 dark:border-indigo-400'
-                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                : 'border-app-border hover:border-app-border-hover'
             }`}
             onClick={() => handleOptionChange(option.value)}
           >
@@ -46,7 +46,7 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
                 name="firmwareOption"
                 checked={isSelected(option.value)}
                 onChange={() => handleOptionChange(option.value)}
-                className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700"
+                className="h-4 w-4 text-indigo-600 border-app-border focus:ring-indigo-500 dark:bg-gray-700"
               />
             </div>
             <div className="ml-3 text-sm">

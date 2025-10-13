@@ -25,7 +25,7 @@ export default function FileSelectStep({ context }: WizardStepProps<UpdateFirmwa
         Choose the firmware update file for your ZWA-2.
       </p>
 
-      <div className="border-2 border-dashed border-gray-300 dark:border-gray-600 rounded-lg p-6 text-center">
+      <div className="border-2 border-dashed border-app-border rounded-lg p-6 text-center">
         <input
           ref={fileInputRef}
           type="file"

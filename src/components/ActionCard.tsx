@@ -26,7 +26,7 @@ export default function ActionCard({
   return (
     <div
       className={classNames(
-        'group relative bg-app-card p-6 shadow rounded-lg h-full border border-gray-200 dark:border-white/10 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600 dark:focus-within:outline-indigo-500',
+        'group relative bg-app-card p-6 shadow rounded-lg h-full focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600 dark:focus-within:outline-indigo-500',
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/70'
       )}
       onClick={disabled ? undefined : onClick}

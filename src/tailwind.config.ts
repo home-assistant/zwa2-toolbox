@@ -10,8 +10,10 @@ export default {
 			colors: {
 				primary: "var(--color-primary)",
 				secondary: "var(--color-secondary)",
-				"app-primary": "var(--app-bg-primary)",
-				"app-card": "var(--app-bg-card)",
+				"app-primary": "var(--color-app-primary)",
+				"app-card": "var(--color-app-card)",
+				"app-border": "var(--color-app-border)",
+				"app-border-hover": "var(--color-app-border-hover)",
 			},
 		},
 	},

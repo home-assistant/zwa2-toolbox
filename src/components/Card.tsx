@@ -24,10 +24,10 @@ interface CardFooterProps {
 export function Card({ children, className = '', standalone = false }: CardProps) {
   const borderStyles = standalone
     ? ''
-    : 'rounded-lg shadow-sm dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-white/10';
+    : 'rounded-lg shadow-sm dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-app-border';
 
   return (
-    <div className={`divide-y divide-gray-200 overflow-hidden bg-app-card dark:divide-white/10 ${borderStyles} ${className}`}>
+    <div className={`divide-y divide-app-border overflow-hidden bg-app-card ${borderStyles} ${className}`}>
       {children}
     </div>
   );

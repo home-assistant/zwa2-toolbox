@@ -2,8 +2,8 @@
 
 :root {
 	/* Light theme colors */
-	--app-bg-primary: white;
-	--app-bg-secondary: #f8f9fa;
+	--app-bg-primary: #f8f9fa;
+	--app-bg-secondary: #white;
 	--app-bg-card: white;
 	--app-bg-header: white;
 	--app-text-primary: #333333;
@@ -42,5 +42,7 @@
   --color-secondary: var(--app-text-secondary);
   --color-app-primary: var(--app-bg-primary);
   --color-app-card: var(--app-bg-card);
+  --color-app-border: var(--app-border);
+  --color-app-border-hover: var(--app-border-hover);
 }
 
