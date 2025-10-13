@@ -26,7 +26,7 @@ export default function ActionCard({
   return (
     <div
       className={classNames(
-        'group relative bg-white p-6 shadow rounded-lg h-full border border-gray-200 dark:border-white/10 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600 dark:bg-gray-800 dark:focus-within:outline-indigo-500',
+        'group relative bg-app-card p-6 shadow rounded-lg h-full border border-gray-200 dark:border-white/10 focus-within:outline-2 focus-within:-outline-offset-2 focus-within:outline-indigo-600 dark:focus-within:outline-indigo-500',
         disabled ? 'opacity-50 cursor-not-allowed' : 'cursor-pointer hover:bg-gray-50 dark:hover:bg-gray-800/70'
       )}
       onClick={disabled ? undefined : onClick}
@@ -37,7 +37,7 @@ export default function ActionCard({
         </span>
       </div>
       <div className="mt-8">
-        <h3 className="text-base font-semibold text-gray-900 dark:text-white">
+        <h3 className="text-base font-semibold text-primary">
           <button
             onClick={disabled ? undefined : onClick}
             disabled={disabled}
@@ -50,7 +50,7 @@ export default function ActionCard({
             {title}
           </button>
         </h3>
-        <p className="mt-2 text-sm text-gray-500 dark:text-gray-400">
+        <p className="mt-2 text-sm text-secondary">
           {description}
         </p>
       </div>

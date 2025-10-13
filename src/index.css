@@ -1,6 +1,46 @@
 @import "tailwindcss";
 
-@theme {
-  --font-sans: InterVariable, sans-serif;
-  --font-sans--font-feature-settings: 'cv02', 'cv03', 'cv04', 'cv11';
+:root {
+	/* Light theme colors */
+	--app-bg-primary: white;
+	--app-bg-secondary: #f8f9fa;
+	--app-bg-card: white;
+	--app-bg-header: white;
+	--app-text-primary: #333333;
+	--app-text-secondary: #666666;
+	--app-text-muted: #999999;
+	--app-border: #e0e0e0;
+	--app-border-hover: #cccccc;
+	--app-shadow: rgba(0, 0, 0, 0.1);
+	--app-shadow-hover: rgba(0, 0, 0, 0.15);
+	--app-category-bg: #e3f2fd;
+	--app-category-text: #1976d2;
+
+	@media (prefers-color-scheme: dark) {
+    /* Dark theme colors */
+		--app-bg-primary: #111111;
+		--app-bg-secondary: #1c1c1c;
+		--app-bg-card: #1c1c1c;
+		--app-bg-header: #1c1c1c;
+		--app-text-primary: #f5f5f5;
+		--app-text-secondary: #c9c9cc;
+		--app-text-muted: #a0a0a0;
+		--app-border: #4a5568;
+		--app-border-hover: #718096;
+		--app-shadow: rgba(0, 0, 0, 0.3);
+		--app-shadow-hover: rgba(0, 0, 0, 0.5);
+		--app-category-bg: #003c62;
+		--app-category-text: #66d4ff;
+	}
 }
+
+@theme {
+	--font-sans: InterVariable, sans-serif;
+	--font-sans--font-feature-settings: "cv02", "cv03", "cv04", "cv11";
+
+  --color-primary: var(--app-text-primary);
+  --color-secondary: var(--app-text-secondary);
+  --color-app-primary: var(--app-bg-primary);
+  --color-app-card: var(--app-bg-card);
+}
+

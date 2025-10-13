@@ -81,7 +81,7 @@ export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwa
   return (
     <div className="text-center py-8">
       {content.icon}
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+      <h3 className="text-lg font-medium text-primary mb-2">
         {content.title}
       </h3>
       {content.message}

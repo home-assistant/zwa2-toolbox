@@ -22,7 +22,7 @@ export default function FlashStep({ context }: WizardStepProps<InstallFirmwareSt
     return (
       <div className="text-center py-8">
         <Spinner className="mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-medium text-primary mb-2">
           Install Firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
@@ -37,7 +37,7 @@ export default function FlashStep({ context }: WizardStepProps<InstallFirmwareSt
     return (
       <div className="text-center py-8">
         <CircularProgress progress={progress} className="mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-medium text-primary mb-2">
           Install Firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
@@ -50,7 +50,7 @@ export default function FlashStep({ context }: WizardStepProps<InstallFirmwareSt
   // Fallback state
   return (
     <div className="text-center py-8">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      <h3 className="text-lg font-medium text-primary mb-4">
         Install Firmware
       </h3>
       <p className="text-gray-600 dark:text-gray-300">

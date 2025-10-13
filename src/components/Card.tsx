@@ -27,7 +27,7 @@ export function Card({ children, className = '', standalone = false }: CardProps
     : 'rounded-lg shadow-sm dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-white/10';
 
   return (
-    <div className={`divide-y divide-gray-200 overflow-hidden bg-white dark:divide-white/10 dark:bg-gray-800 ${borderStyles} ${className}`}>
+    <div className={`divide-y divide-gray-200 overflow-hidden bg-app-card dark:divide-white/10 ${borderStyles} ${className}`}>
       {children}
     </div>
   );

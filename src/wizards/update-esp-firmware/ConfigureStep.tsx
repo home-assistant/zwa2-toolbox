@@ -119,7 +119,7 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 				<WifiIcon className="w-16 h-16" />
 			</div>
 			<div className="text-center">
-				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+				<h3 className="text-lg font-medium text-primary mb-2">
 					Configure WiFi
 				</h3>
 				<p className="text-gray-600 dark:text-gray-300">

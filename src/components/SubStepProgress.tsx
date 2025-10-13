@@ -32,7 +32,7 @@ export default function SubStepProgress({ steps, currentStepIndex, spinnerColor 
                         className="size-full text-green-600 dark:text-green-400"
                       />
                     </span>
-                    <span className="ml-3 text-sm font-medium text-gray-900 dark:text-white">
+                    <span className="ml-3 text-sm font-medium text-primary">
                       {step.name}
                     </span>
                   </span>
@@ -56,7 +56,7 @@ export default function SubStepProgress({ steps, currentStepIndex, spinnerColor 
                     <div aria-hidden="true" className="relative flex size-5 shrink-0 items-center justify-center">
                       <div className="size-2 rounded-full bg-gray-300 dark:bg-white/15" />
                     </div>
-                    <p className="ml-3 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <p className="ml-3 text-sm font-medium text-secondary">
                       {step.name}
                     </p>
                   </div>

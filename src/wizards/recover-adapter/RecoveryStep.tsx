@@ -9,7 +9,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
   if (isRecovering) {
     return (
       <div className="py-8">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+        <h3 className="text-lg font-medium text-primary mb-4">
           Recovering Adapter
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
@@ -38,7 +38,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
   if (diagnosisResult?.tag === "CORRUPTED_FIRMWARE") {
     return (
       <div className="py-8">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+        <h3 className="text-lg font-medium text-primary mb-4">
           Recover corrupted firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
@@ -55,7 +55,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
               onChange={() => setUseCustomFirmware(false)}
               className="h-4 w-4 border-gray-300 text-orange-600 focus:ring-orange-600"
             />
-            <label htmlFor="latest-firmware" className="block text-sm font-medium text-gray-900 dark:text-white">
+            <label htmlFor="latest-firmware" className="block text-sm font-medium text-primary">
               Install latest Z-Wave controller firmware
             </label>
           </div>
@@ -69,7 +69,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
               onChange={() => setUseCustomFirmware(true)}
               className="h-4 w-4 border-gray-300 text-orange-600 focus:ring-orange-600"
             />
-            <label htmlFor="custom-firmware" className="block text-sm font-medium text-gray-900 dark:text-white">
+            <label htmlFor="custom-firmware" className="block text-sm font-medium text-primary">
               Provide custom firmware file (.gbl or .zip)
             </label>
           </div>
@@ -83,7 +83,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
                   const file = e.target.files?.[0] || null;
                   context.setState(prev => ({ ...prev, selectedFile: file }));
                 }}
-                className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-500/10 dark:file:text-orange-400"
+                className="block w-full text-sm text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-500/10 dark:file:text-orange-400"
               />
               {selectedFile && (
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
@@ -100,7 +100,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
   if (diagnosisResult?.tag === "UNKNOWN_FIRMWARE") {
     return (
       <div className="py-8">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+        <h3 className="text-lg font-medium text-primary mb-4">
           Recover Unknown Firmware
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
@@ -118,7 +118,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
               onChange={() => setUseCustomFirmware(false)}
               className="h-4 w-4 border-gray-300 text-orange-600 focus:ring-orange-600"
             />
-            <label htmlFor="latest-firmware-unknown" className="block text-sm font-medium text-gray-900 dark:text-white">
+            <label htmlFor="latest-firmware-unknown" className="block text-sm font-medium text-primary">
               Install latest Z-Wave controller firmware
             </label>
           </div>
@@ -132,7 +132,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
               onChange={() => setUseCustomFirmware(true)}
               className="h-4 w-4 border-gray-300 text-orange-600 focus:ring-orange-600"
             />
-            <label htmlFor="custom-firmware-unknown" className="block text-sm font-medium text-gray-900 dark:text-white">
+            <label htmlFor="custom-firmware-unknown" className="block text-sm font-medium text-primary">
               Provide custom firmware file (.gbl or .zip)
             </label>
           </div>
@@ -149,7 +149,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
               }}
               className="h-4 w-4 border-gray-300 text-orange-600 focus:ring-orange-600"
             />
-            <label htmlFor="abort-recovery" className="block text-sm font-medium text-gray-900 dark:text-white">
+            <label htmlFor="abort-recovery" className="block text-sm font-medium text-primary">
               Abort recovery
             </label>
           </div>
@@ -163,7 +163,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
                   const file = e.target.files?.[0] || null;
                   context.setState(prev => ({ ...prev, selectedFile: file }));
                 }}
-                className="block w-full text-sm text-gray-500 dark:text-gray-400 file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-500/10 dark:file:text-orange-400"
+                className="block w-full text-sm text-secondary file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-sm file:font-semibold file:bg-orange-50 file:text-orange-700 hover:file:bg-orange-100 dark:file:bg-orange-500/10 dark:file:text-orange-400"
               />
               {selectedFile && (
                 <p className="mt-2 text-sm text-gray-600 dark:text-gray-300">
@@ -180,7 +180,7 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
   // This should never happen as we should skip to summary for other cases
   return (
     <div className="py-8">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      <h3 className="text-lg font-medium text-primary mb-4">
         Recovery
       </h3>
       <p className="text-gray-600 dark:text-gray-300">

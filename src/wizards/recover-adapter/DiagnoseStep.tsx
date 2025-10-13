@@ -48,7 +48,7 @@ export default function DiagnoseStep({ context }: WizardStepProps<RecoverAdapter
     return (
       <div className="text-center py-8">
         <Spinner className="mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-medium text-primary mb-2">
           Diagnosing Adapter
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
@@ -61,7 +61,7 @@ export default function DiagnoseStep({ context }: WizardStepProps<RecoverAdapter
   if (diagnosisResult) {
     return (
       <div className="py-8">
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-6">
+        <h3 className="text-lg font-medium text-primary mb-6">
           Diagnostics results
         </h3>
         <DiagnosisResultDisplay result={diagnosisResult} />
@@ -71,7 +71,7 @@ export default function DiagnoseStep({ context }: WizardStepProps<RecoverAdapter
 
   return (
     <div className="text-center py-8">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      <h3 className="text-lg font-medium text-primary mb-4">
         Diagnose Adapter
       </h3>
       <p className="text-gray-600 dark:text-gray-300">

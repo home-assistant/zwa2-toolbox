@@ -11,7 +11,7 @@ export default function ConfirmStep({ context }: WizardStepProps<EraseNVMState>)
 
   return (
     <div className="py-8">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      <h3 className="text-lg font-medium text-primary mb-4">
         Confirm NVM Erase
       </h3>
 
@@ -52,7 +52,7 @@ export default function ConfirmStep({ context }: WizardStepProps<EraseNVMState>)
           onChange={(e) => handleConfirmChange(e.target.checked)}
           className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded dark:bg-gray-700 dark:border-gray-600"
         />
-        <label htmlFor="confirm-erase" className="ml-2 block text-sm text-gray-900 dark:text-white">
+        <label htmlFor="confirm-erase" className="ml-2 block text-sm text-primary">
           I understand that this action cannot be undone and I want to proceed with erasing the NVM.
         </label>
       </div>

@@ -22,7 +22,7 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
 
   return (
     <div className="py-8">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      <h3 className="text-lg font-medium text-primary mb-4">
         Choose which firmware package to install
       </h3>
       <p className="text-gray-600 dark:text-gray-300 mb-6">
@@ -50,10 +50,10 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
               />
             </div>
             <div className="ml-3 text-sm">
-              <label className="font-medium text-gray-900 dark:text-white cursor-pointer">
+              <label className="font-medium text-primary cursor-pointer">
                 {option.label}
               </label>
-              <p className="text-gray-500 dark:text-gray-400">
+              <p className="text-secondary">
                 {option.description}
               </p>
             </div>

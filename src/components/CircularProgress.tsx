@@ -49,7 +49,7 @@ export default function CircularProgress({
       </svg>
       {/* Percentage text in center */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-medium text-gray-900 dark:text-white">
+        <span className="text-sm font-medium text-primary">
           {Math.round(progress)}%
         </span>
       </div>
