@@ -191,7 +191,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 						<button
 							onClick={handleESP32Connect}
 							disabled={context.connectionState.status === 'connecting'}
-							className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-purple-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-purple-500 dark:hover:bg-purple-400"
+							className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-400"
 						>
 							{context.connectionState.status === 'connecting' ? 'Connecting...' : 'Select ESP32 Port'}
 						</button>

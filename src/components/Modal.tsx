@@ -61,7 +61,7 @@ export default function Modal({
                 <button
                   type="button"
                   onClick={onClose}
-                  className="rounded-md bg-app-card text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-indigo-500 focus:ring-offset-2 dark:text-gray-300 dark:hover:text-gray-400"
+                  className="rounded-md bg-app-card text-gray-400 hover:text-gray-500 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 dark:text-gray-300 dark:hover:text-gray-400"
                 >
                   <span className="sr-only">Close</span>
                   <XMarkIcon className="size-6" aria-hidden="true" />

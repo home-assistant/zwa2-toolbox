@@ -50,7 +50,7 @@ export default function ConfirmStep({ context }: WizardStepProps<EraseNVMState>)
           type="checkbox"
           checked={context.state.confirmed}
           onChange={(e) => handleConfirmChange(e.target.checked)}
-          className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-app-border rounded dark:bg-gray-700"
+          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-app-border rounded dark:bg-gray-700"
         />
         <label htmlFor="confirm-erase" className="ml-2 block text-sm text-primary">
           I understand that this action cannot be undone and I want to proceed with erasing the NVM.

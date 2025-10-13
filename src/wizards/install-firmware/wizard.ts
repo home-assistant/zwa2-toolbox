@@ -157,8 +157,8 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 	description:
 		"Install the latest controller firmware on your ZWA-2.",
 	icon: CloudArrowDownIcon,
-	iconForeground: "text-indigo-700 dark:text-indigo-400",
-	iconBackground: "bg-indigo-50 dark:bg-indigo-500/10",
+	iconForeground: "text-blue-700 dark:text-blue-400",
+	iconBackground: "bg-blue-50 dark:bg-blue-500/10",
 	createInitialState: () => ({
 		selectedFirmware: null,
 		isFlashing: false,

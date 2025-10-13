@@ -106,7 +106,7 @@ export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFir
               key={index}
               className={`relative flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
                 isSelected(option.value)
-                  ? 'border-purple-500 bg-purple-50 dark:bg-purple-500/10 dark:border-purple-400'
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400'
                   : 'border-app-border hover:border-app-border-hover'
               }`}
               onClick={() => handleOptionChange(option.value)}
@@ -117,7 +117,7 @@ export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFir
                   name="espFirmwareOption"
                   checked={isSelected(option.value)}
                   onChange={() => handleOptionChange(option.value)}
-                  className="h-4 w-4 text-purple-600 border-app-border focus:ring-purple-500 dark:bg-gray-700"
+                  className="h-4 w-4 text-blue-600 border-app-border focus:ring-blue-500 dark:bg-gray-700"
                 />
               </div>
               <div className="ml-3 text-sm flex-1">

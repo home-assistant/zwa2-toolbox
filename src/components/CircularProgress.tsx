@@ -33,7 +33,7 @@ export default function CircularProgress({
         {/* Progress circle */}
         <circle
           stroke="currentColor"
-          className="text-indigo-600 dark:text-indigo-400"
+          className="text-blue-600 dark:text-blue-400"
           fill="transparent"
           strokeWidth={strokeWidth}
           strokeDasharray={strokeDasharray}

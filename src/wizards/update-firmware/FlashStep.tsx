@@ -39,7 +39,7 @@ export default function FlashStep({ context }: WizardStepProps<UpdateFirmwareSta
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
             <div
-              className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>

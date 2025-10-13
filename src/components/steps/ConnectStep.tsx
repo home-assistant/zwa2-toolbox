@@ -48,7 +48,7 @@ export default function ConnectStep<T>({ context }: WizardStepProps<T>) {
         <button
           onClick={handleConnect}
           disabled={context.connectionState.status === 'connecting'}
-          className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-400"
+          className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-400"
         >
           {context.connectionState.status === 'connecting' ? 'Connecting...' : 'Connect'}
         </button>
@@ -58,7 +58,7 @@ export default function ConnectStep<T>({ context }: WizardStepProps<T>) {
           <button
             onClick={handleConnect}
             disabled={context.connectionState.status === 'connecting'}
-            className="rounded-md bg-indigo-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-indigo-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-indigo-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-indigo-500 dark:hover:bg-indigo-400"
+            className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-400"
           >
             {context.connectionState.status === 'connecting' ? 'Connecting...' : 'Try Again'}
           </button>

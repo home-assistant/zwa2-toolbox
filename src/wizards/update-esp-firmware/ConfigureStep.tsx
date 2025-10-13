@@ -115,7 +115,7 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 	if (configureState.status === 'ready' || configureState.status === 'error') {
 		return (
 		<div className="flex flex-col items-center py-8 space-y-6 max-w-md mx-auto">
-			<div className="text-purple-600 dark:text-purple-400">
+			<div className="text-blue-600 dark:text-blue-400">
 				<WifiIcon className="w-16 h-16" />
 			</div>
 			<div className="text-center">
@@ -130,7 +130,7 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 			<improv-wifi-serial-launch-button ref={improvButtonRef}>
 				<button
 					slot="activate"
-					className="w-full rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-purple-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600 dark:bg-purple-500 dark:hover:bg-purple-400"
+					className="w-full rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 dark:bg-blue-500 dark:hover:bg-blue-400"
 				>
 					{context.state.configureState.status === 'error' ? 'Try again' : 'Configure WiFi Credentials'}
 				</button>

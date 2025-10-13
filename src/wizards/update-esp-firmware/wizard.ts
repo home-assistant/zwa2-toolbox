@@ -476,8 +476,8 @@ export const installESPBridgeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwar
 	description:
 		"The default firmware that comes pre-installed on the ZWA-2.",
 	icon: CpuChipIcon,
-	iconForeground: "text-purple-700 dark:text-purple-400",
-	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
+	iconForeground: "text-blue-700 dark:text-blue-400",
+	iconBackground: "bg-blue-50 dark:bg-blue-500/10",
 	standalone: true,
 	createInitialState: () => {
 		const manifestId = "usb_bridge";
@@ -521,8 +521,8 @@ export const installESPHomeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareS
 	description:
 		"Allows connecting to ZWA-2 via WiFi.",
 	icon: CpuChipIcon,
-	iconForeground: "text-purple-700 dark:text-purple-400",
-	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
+	iconForeground: "text-blue-700 dark:text-blue-400",
+	iconBackground: "bg-blue-50 dark:bg-blue-500/10",
 	standalone: true,
 	createInitialState: () => {
 		const manifest = ESP_FIRMWARE_MANIFESTS.esphome;
