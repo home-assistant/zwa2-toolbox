@@ -32,7 +32,7 @@ export default function SubStepProgress({ steps, currentStepIndex, spinnerColor 
                         className="size-full text-green-600 dark:text-green-400"
                       />
                     </span>
-                    <span className="ml-3 text-sm font-medium text-gray-900 dark:text-white">
+                    <span className="ml-3 text-sm font-medium text-primary">
                       {step.name}
                     </span>
                   </span>
@@ -40,10 +40,10 @@ export default function SubStepProgress({ steps, currentStepIndex, spinnerColor 
               ) : index === currentStepIndex ? (
                 <div className="flex items-start">
                   <span aria-hidden="true" className="relative flex size-5 shrink-0 items-center justify-center">
-                    <span className="absolute size-4 rounded-full bg-indigo-200 dark:bg-indigo-900" />
-                    <span className="relative block size-2 rounded-full bg-indigo-600 dark:bg-indigo-400" />
+                    <span className="absolute size-4 rounded-full bg-blue-200 dark:bg-blue-900" />
+                    <span className="relative block size-2 rounded-full bg-blue-600 dark:bg-blue-400" />
                   </span>
-                  <span className="ml-3 text-sm font-medium text-indigo-600 dark:text-indigo-400 flex items-center">
+                  <span className="ml-3 text-sm font-medium text-blue-600 dark:text-blue-400 flex items-center">
                     {step.name}
                     {step.showSpinner && (
                       <Spinner size="h-4 w-4" color={spinnerColor} className="ml-2" />
@@ -56,7 +56,7 @@ export default function SubStepProgress({ steps, currentStepIndex, spinnerColor 
                     <div aria-hidden="true" className="relative flex size-5 shrink-0 items-center justify-center">
                       <div className="size-2 rounded-full bg-gray-300 dark:bg-white/15" />
                     </div>
-                    <p className="ml-3 text-sm font-medium text-gray-500 dark:text-gray-400">
+                    <p className="ml-3 text-sm font-medium text-secondary">
                       {step.name}
                     </p>
                   </div>

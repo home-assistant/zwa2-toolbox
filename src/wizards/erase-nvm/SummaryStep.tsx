@@ -6,7 +6,7 @@ export default function SummaryStep({ context }: WizardStepProps<EraseNVMState>)
 
   return (
     <div className="py-8">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      <h3 className="text-lg font-medium text-primary mb-4">
         Erase Summary
       </h3>
 

@@ -133,7 +133,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 		return (
 			<div className="text-center py-8">
 				<Spinner className="mx-auto mb-4" />
-				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+				<h3 className="text-lg font-medium text-primary mb-2">
 					Downloading {installState.firmwareLabel} firmware...
 				</h3>
 			</div>
@@ -145,7 +145,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 		return (
 			<div className="text-center py-8">
 				<Spinner className="mx-auto mb-4" />
-				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+				<h3 className="text-lg font-medium text-primary mb-2">
 					Enter bootloader
 				</h3>
 				<p className="text-gray-600 dark:text-gray-300">
@@ -170,7 +170,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 					)}
 				</div>
 				<div className="text-center">
-					<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+					<h3 className="text-lg font-medium text-primary mb-2">
 						{connectedToESP32 ? 'ESP32 Connected' : 'Connect to ESP32 Bootloader'}
 					</h3>
 					<p className="text-gray-600 dark:text-gray-300">
@@ -191,7 +191,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 						<button
 							onClick={handleESP32Connect}
 							disabled={context.connectionState.status === 'connecting'}
-							className="rounded-md bg-purple-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-purple-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-purple-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-purple-500 dark:hover:bg-purple-400"
+							className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-400"
 						>
 							{context.connectionState.status === 'connecting' ? 'Connecting...' : 'Select ESP32 Port'}
 						</button>
@@ -213,7 +213,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 				{connectedToESP32 && context.onDisconnect && (
 					<button
 						onClick={context.onDisconnect}
-						className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-gray-900 shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:text-white dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
+						className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-primary shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
 					>
 						Connect different device
 					</button>
@@ -227,7 +227,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 		return (
 			<div className="text-center py-8">
 				<CircularProgress progress={installState.progress} className="mb-4" />
-				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+				<h3 className="text-lg font-medium text-primary mb-2">
 					Install firmware
 				</h3>
 				<p className="text-gray-600 dark:text-gray-300">
@@ -242,7 +242,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 		return (
 			<div className="text-center py-8">
 				<Spinner className="mx-auto mb-4" />
-				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+				<h3 className="text-lg font-medium text-primary mb-2">
 					Firmware installed successfully
 				</h3>
 				<p className="text-gray-600 dark:text-gray-300">
@@ -255,7 +255,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 	// Fallback/idle state
 	return (
 		<div className="text-center py-8">
-			<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+			<h3 className="text-lg font-medium text-primary mb-4">
 				Install firmware
 			</h3>
 			<p className="text-gray-600 dark:text-gray-300">

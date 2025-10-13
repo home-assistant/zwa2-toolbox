@@ -22,7 +22,7 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
 
   return (
     <div className="py-8">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      <h3 className="text-lg font-medium text-primary mb-4">
         Choose which firmware package to install
       </h3>
       <p className="text-gray-600 dark:text-gray-300 mb-6">
@@ -35,8 +35,8 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
             key={index}
             className={`relative flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
               isSelected(option.value)
-                ? 'border-indigo-500 bg-indigo-50 dark:bg-indigo-500/10 dark:border-indigo-400'
-                : 'border-gray-300 dark:border-gray-600 hover:border-gray-400 dark:hover:border-gray-500'
+                ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400'
+                : 'border-app-border hover:border-app-border-hover'
             }`}
             onClick={() => handleOptionChange(option.value)}
           >
@@ -46,14 +46,14 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
                 name="firmwareOption"
                 checked={isSelected(option.value)}
                 onChange={() => handleOptionChange(option.value)}
-                className="h-4 w-4 text-indigo-600 border-gray-300 focus:ring-indigo-500 dark:border-gray-600 dark:bg-gray-700"
+                className="h-4 w-4 text-blue-600 border-app-border focus:ring-blue-500 dark:bg-gray-700"
               />
             </div>
             <div className="ml-3 text-sm">
-              <label className="font-medium text-gray-900 dark:text-white cursor-pointer">
+              <label className="font-medium text-primary cursor-pointer">
                 {option.label}
               </label>
-              <p className="text-gray-500 dark:text-gray-400">
+              <p className="text-secondary">
                 {option.description}
               </p>
             </div>

@@ -12,7 +12,7 @@ export default function FlashStep({ context }: WizardStepProps<UpdateFirmwareSta
             <path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" />
           </svg>
         </div>
-        <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
+        <h3 className="text-lg font-medium text-primary mb-2">
           Firmware Updated Successfully!
         </h3>
         <p className="text-gray-600 dark:text-gray-300">
@@ -24,7 +24,7 @@ export default function FlashStep({ context }: WizardStepProps<UpdateFirmwareSta
 
   return (
     <div className="py-8">
-      <h3 className="text-lg font-medium text-gray-900 dark:text-white mb-4">
+      <h3 className="text-lg font-medium text-primary mb-4">
         Updating firmware
       </h3>
       <p className="text-gray-600 dark:text-gray-300 mb-6">
@@ -39,7 +39,7 @@ export default function FlashStep({ context }: WizardStepProps<UpdateFirmwareSta
           </div>
           <div className="w-full bg-gray-200 rounded-full h-2 dark:bg-gray-700">
             <div
-              className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>

@@ -33,7 +33,7 @@ export default function CircularProgress({
         {/* Progress circle */}
         <circle
           stroke="currentColor"
-          className="text-indigo-600 dark:text-indigo-400"
+          className="text-blue-600 dark:text-blue-400"
           fill="transparent"
           strokeWidth={strokeWidth}
           strokeDasharray={strokeDasharray}
@@ -49,7 +49,7 @@ export default function CircularProgress({
       </svg>
       {/* Percentage text in center */}
       <div className="absolute inset-0 flex items-center justify-center">
-        <span className="text-sm font-medium text-gray-900 dark:text-white">
+        <span className="text-sm font-medium text-primary">
           {Math.round(progress)}%
         </span>
       </div>

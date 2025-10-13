@@ -5,7 +5,7 @@ interface SpinnerProps {
    */
   size?: string;
   /**
-   * Color of the spinner border as a full Tailwind class (e.g., 'border-blue-600', 'border-indigo-600')
+   * Color of the spinner border as a full Tailwind class (e.g., 'border-blue-600', 'border-blue-600')
    * @default 'border-blue-600'
    */
   color?: string;

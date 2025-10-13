@@ -75,7 +75,7 @@ export default function Breadcrumb({ items, onHomeClick, disabled = false }: Bre
                 className={`ml-4 text-sm font-medium ${
                   disabled
                     ? 'text-gray-300 cursor-not-allowed dark:text-gray-600'
-                    : 'text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-200'
+                    : 'text-secondary hover:text-gray-700 dark:hover:text-gray-200'
                 }`}
               >
                 {item.name}

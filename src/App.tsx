@@ -9,7 +9,7 @@ import { useBaseWizardContext } from "./hooks/useBaseWizardContext";
 
 function Container(props: PropsWithChildren) {
 	return (
-		<div className="bg-gray-100 dark:bg-gray-900 min-h-screen px-6 py-24 sm:py-32 lg:px-8">
+		<div className="bg-app-primary min-h-screen px-6 py-24 sm:py-32 lg:px-8">
 			<div className="max-w-7xl mx-auto">{props.children}</div>
 		</div>
 	);
@@ -37,7 +37,7 @@ export default function App() {
 
 			return (
 				<Container>
-					<h2 className="text-4xl font-semibold tracking-tight text-balance text-gray-900 sm:text-5xl dark:text-white mb-8">
+					<h2 className="text-4xl font-semibold tracking-tight text-balance text-primary sm:text-5xl mb-8">
 						ZWA-2 Toolbox
 					</h2>
 
@@ -61,10 +61,10 @@ export default function App() {
 
 	return (
 		<Container>
-			<h2 className="text-4xl font-semibold tracking-tight text-balance text-gray-900 sm:text-5xl dark:text-white">
+			<h2 className="text-4xl font-semibold tracking-tight text-balance text-primary sm:text-5xl">
 				Home Assistant Connect ZWA-2 Toolbox
 			</h2>
-			<p className="mt-6 max-w-xl text-lg text-gray-600 dark:text-gray-300">
+			<p className="mt-6 max-w-xl text-lg text-secondary">
 				User friendly tools to manage Home Assistant Connect ZWA-2
 				directly in your browser.
 			</p>
