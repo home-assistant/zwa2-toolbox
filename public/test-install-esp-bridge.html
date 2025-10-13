@@ -6,8 +6,20 @@
 		<title>Install ESP Bridge Firmware</title>
 	</head>
 	<body>
+		<h1>Default USB Bridge Firmware</h1>
+		<p>This example uses the default USB Bridge firmware:</p>
 		<!-- The web component will be rendered here -->
 		<install-esp-bridge-firmware></install-esp-bridge-firmware>
+
+		<hr style="margin: 3rem 0;" />
+
+		<h1>Custom Firmware with Manifest Property</h1>
+		<p>This example uses the ESPHome manifest with custom properties:</p>
+		<!-- Example with custom manifest and label -->
+		<install-esp-bridge-firmware
+			manifest="https://firmware.esphome.io/ha-connect-zwa-2/home-assistant-zwa-2/manifest.json"
+			label="Custom ESPHome Firmware">
+		</install-esp-bridge-firmware>
 
 		<!-- Load the web component script -->
 		<script type="module" src="./standalone/install-esp-bridge-firmware.js"></script>

@@ -65,7 +65,7 @@ export type InstallState =
 	| { status: "error"; errorMessage: string };
 
 export type ESPFirmwareOption =
-	| { type: "manifest"; manifestId: string; version?: string; label?: string; wifi?: boolean };
+	| { type: "manifest"; manifestId: string; version?: string; label?: string; wifi?: boolean; manifestUrl?: string };
 
 export type ConfigureState =
 	| { status: "idle" }
@@ -198,13 +198,25 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 		let firmwareOffset: number;
 
 		if (selectedFirmware.type === "manifest") {
-			const manifestConfig = ESP_FIRMWARE_MANIFESTS[selectedFirmware.manifestId];
-			if (!manifestConfig) {
-				throw new Error(`Unknown manifest ID: ${selectedFirmware.manifestId}`);
+			// Use custom manifest URL if provided, otherwise look up from predefined manifests
+			let manifestUrl: string;
+			let changelogUrl: ((version: string) => string) | undefined;
+
+			if (selectedFirmware.manifestUrl) {
+				// Custom manifest URL provided (e.g., from web component props)
+				manifestUrl = selectedFirmware.manifestUrl;
+			} else {
+				// Look up from predefined manifests
+				const manifestConfig = ESP_FIRMWARE_MANIFESTS[selectedFirmware.manifestId];
+				if (!manifestConfig) {
+					throw new Error(`Unknown manifest ID: ${selectedFirmware.manifestId}`);
+				}
+				manifestUrl = manifestConfig.manifestUrl;
+				changelogUrl = manifestConfig.changelogUrl;
 			}
 
 			const { fetchManifestFirmwareInfo, downloadFirmware } = await import("../../lib/esp-firmware-download");
-			const firmwareInfo = await fetchManifestFirmwareInfo(manifestConfig.manifestUrl, manifestConfig.changelogUrl);
+			const firmwareInfo = await fetchManifestFirmwareInfo(manifestUrl, changelogUrl);
 			firmwareData = await downloadFirmware(firmwareInfo.downloadUrl);
 			firmwareOffset = firmwareInfo.offset;
 		} else {
