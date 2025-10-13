@@ -296,7 +296,7 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
     : cancelButton?.label ?? 'Cancel';
 
   return (
-    <Card>
+    <Card standalone={config.standalone}>
       <CardHeader>
         <ProgressSteps
           steps={progressSteps}

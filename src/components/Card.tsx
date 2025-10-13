@@ -3,6 +3,7 @@ import React from 'react';
 interface CardProps {
   children: React.ReactNode;
   className?: string;
+  standalone?: boolean;
 }
 
 interface CardHeaderProps {
@@ -20,9 +21,13 @@ interface CardFooterProps {
   className?: string;
 }
 
-export function Card({ children, className = '' }: CardProps) {
+export function Card({ children, className = '', standalone = false }: CardProps) {
+  const borderStyles = standalone
+    ? ''
+    : 'rounded-lg shadow-sm dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-white/10';
+
   return (
-    <div className={`divide-y divide-gray-200 overflow-hidden rounded-lg bg-white shadow-sm dark:divide-white/10 dark:bg-gray-800 dark:shadow-none dark:outline dark:-outline-offset-1 dark:outline-white/10 ${className}`}>
+    <div className={`divide-y divide-gray-200 overflow-hidden bg-white dark:divide-white/10 dark:bg-gray-800 ${borderStyles} ${className}`}>
       {children}
     </div>
   );
