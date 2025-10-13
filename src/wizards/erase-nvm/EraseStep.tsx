@@ -26,7 +26,7 @@ export default function EraseStep({ context }: WizardStepProps<EraseNVMState>) {
 
       {isErasing && (
         <div className="text-center mt-6">
-          <Spinner size="h-8 w-8" color="border-indigo-600" className="inline-block mb-4" />
+          <Spinner size="h-8 w-8" className="inline-block mb-4" />
           <p className="text-gray-600 dark:text-gray-300">
             Erasing NVM data... Please do not disconnect the device.
           </p>

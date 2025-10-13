@@ -132,7 +132,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 	if (installState.status === "downloading") {
 		return (
 			<div className="text-center py-8">
-				<Spinner className="mx-auto mb-4" color="border-purple-600" />
+				<Spinner className="mx-auto mb-4" />
 				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
 					Downloading {installState.firmwareLabel} firmware...
 				</h3>
@@ -144,7 +144,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 	if (installState.status === "entering-bootloader") {
 		return (
 			<div className="text-center py-8">
-				<Spinner className="mx-auto mb-4" color="border-purple-600" />
+				<Spinner className="mx-auto mb-4" />
 				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
 					Enter bootloader
 				</h3>
@@ -241,7 +241,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 	if (installState.status === "waiting-for-power-cycle") {
 		return (
 			<div className="text-center py-8">
-				<Spinner className="mx-auto mb-4" color="border-purple-600" />
+				<Spinner className="mx-auto mb-4" />
 				<h3 className="text-lg font-medium text-gray-900 dark:text-white mb-2">
 					Firmware installed successfully
 				</h3>

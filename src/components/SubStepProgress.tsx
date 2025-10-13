@@ -10,13 +10,13 @@ interface SubStepProgressProps {
   steps: SubStep[];
   currentStepIndex: number;
   /**
-   * Color of the spinner border as a full Tailwind class (e.g., 'border-indigo-600', 'border-orange-600')
-   * @default 'border-indigo-600'
+   * Color of the spinner border as a full Tailwind class (e.g., 'border-blue-600', 'border-orange-600')
+   * @default 'border-blue-600'
    */
   spinnerColor?: string;
 }
 
-export default function SubStepProgress({ steps, currentStepIndex, spinnerColor = 'border-indigo-600' }: SubStepProgressProps) {
+export default function SubStepProgress({ steps, currentStepIndex, spinnerColor = 'border-blue-600' }: SubStepProgressProps) {
   return (
     <div className="px-4 py-12 sm:px-6 lg:px-8">
       <nav aria-label="Progress">
