@@ -1,7 +1,6 @@
-import type { WizardStepProps } from '../../components/Wizard';
-import type { UpdateESPFirmwareState } from './wizard';
+import type { UpdateESPFirmwareWizardStepProps } from './wizard';
 
-export default function SummaryStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
+export default function SummaryStep({ context }: UpdateESPFirmwareWizardStepProps) {
   const { installState, configureState } = context.state;
 
   const getResultContent = () => {

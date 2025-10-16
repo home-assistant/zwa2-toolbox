@@ -1,12 +1,11 @@
 import { useCallback, useEffect, useState } from 'react';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
-import type { WizardStepProps } from '../../components/Wizard';
-import type { UpdateESPFirmwareState, ESPFirmwareOption } from './wizard';
+import type { UpdateESPFirmwareWizardStepProps, ESPFirmwareOption } from './wizard';
 import { ESP_FIRMWARE_MANIFESTS } from './wizard';
 import { fetchManifestFirmwareInfo } from '../../lib/esp-firmware-download';
 import Modal from '../../components/Modal';
 
-export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
+export default function FileSelectStep({ context }: UpdateESPFirmwareWizardStepProps) {
   const { selectedFirmware } = context.state;
   const [isChangelogModalOpen, setIsChangelogModalOpen] = useState(false);
   const [activeChangelogManifest, setActiveChangelogManifest] = useState<string | null>(null);
@@ -92,7 +91,7 @@ export default function FileSelectStep({ context }: WizardStepProps<UpdateESPFir
         Choose which firmware package to install
       </h3>
       <p className="text-gray-600 dark:text-gray-300 mb-6">
-        Select the firmware package you want to install on your ZWA-2.
+        Select the firmware package you want to install on your {context.labels.deviceName}.
       </p>
 
       <div className="space-y-4">

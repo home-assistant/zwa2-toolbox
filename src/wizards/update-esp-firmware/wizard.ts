@@ -4,7 +4,7 @@ import InstallStep from "./InstallStep";
 import ConfigureStep from "./ConfigureStep";
 import SummaryStep from "./SummaryStep";
 import ESPConnectStep from "./ESPConnectStep";
-import type { WizardConfig, WizardContext } from "../../components/Wizard";
+import type { WizardConfig, WizardContext, WizardStepProps } from "../../components/Wizard";
 import { enterESPBootloader, ESP32_DEVICE_FILTERS } from "../../lib/esp-utils";
 import { ESPLoader, Transport, type FlashOptions, type LoaderOptions } from "esptool-js";
 import { ZWA2_DEVICE_FILTERS } from "../../lib/zwave";
@@ -82,6 +82,23 @@ export interface UpdateESPFirmwareState {
 	configureState: ConfigureState;
 	deviceType: 'zwa2' | 'esp32' | 'unknown' | null; // Track detected device type
 }
+
+export interface UpdateESPFirmwareLabels {
+	// Configurable labels for different hardware
+	/** How the device should be called standalone */
+	deviceName: string;
+	/**
+	 * How the device should be called when referring to the strings in the serial port selector.
+	 * Empty string ("") skips the text.
+	 */
+	serialportLabel: string;
+	/**
+	 * How the ESP chip variant should be called when referring to the serial port selector.
+	 */
+	espVariant: string;
+}
+
+export type UpdateESPFirmwareWizardStepProps = WizardStepProps<UpdateESPFirmwareState, UpdateESPFirmwareLabels>;
 
 export async function flashESPFirmwareWithData(
 	context: WizardContext<UpdateESPFirmwareState>,
@@ -423,7 +440,7 @@ const summaryStepButtons = {
 	},
 };
 
-export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
+export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState, UpdateESPFirmwareLabels> = {
 	id: "update-esp",
 	title: "Update ESP firmware",
 	description:
@@ -437,6 +454,11 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 		configureState: { status: "idle" },
 		deviceType: null,
 	}),
+	labels: {
+		deviceName: "ZWA-2",
+		serialportLabel: "ZWA-2",
+		espVariant: "ESP32-S3",
+	},
 	steps: [
 		{
 			name: "Connect",
@@ -470,7 +492,7 @@ export const updateESPFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState>
 };
 
 // Specialized wizard for updating ESP Bridge firmware only
-export const installESPBridgeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
+export const installESPBridgeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState, UpdateESPFirmwareLabels> = {
 	id: "update-esp-bridge",
 	title: "Install USB Bridge firmware",
 	description:
@@ -492,6 +514,11 @@ export const installESPBridgeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwar
 			configureState: { status: "idle" },
 			deviceType: null,
 		};
+	},
+	labels: {
+		deviceName: "ZWA-2",
+		serialportLabel: "ZWA-2",
+		espVariant: "ESP32-S3",
 	},
 	steps: [
 		{
@@ -515,7 +542,7 @@ export const installESPBridgeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwar
 };
 
 // Specialized wizard for updating ESPHome (Portable Z-Wave) firmware only
-export const installESPHomeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState> = {
+export const installESPHomeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareState, UpdateESPFirmwareLabels> = {
 	id: "install-esphome",
 	title: "Install Portable Z-Wave firmware",
 	description:
@@ -537,6 +564,12 @@ export const installESPHomeFirmwareWizardConfig: WizardConfig<UpdateESPFirmwareS
 			configureState: { status: "idle" },
 			deviceType: null,
 		};
+	},
+	// ESPHome wizard always uses default ZWA-2 labels
+	labels: {
+		deviceName: "ZWA-2",
+		serialportLabel: "ZWA-2",
+		espVariant: "ESP32-S3",
 	},
 	steps: [
 		{

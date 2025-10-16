@@ -1,7 +1,6 @@
 import { useEffect, useRef } from 'react';
 import { WifiIcon } from '@heroicons/react/24/outline';
-import type { WizardStepProps } from '../../components/Wizard';
-import type { UpdateESPFirmwareState } from './wizard';
+import type { UpdateESPFirmwareWizardStepProps } from './wizard';
 import 'improv-wifi-serial-sdk/dist/web/serial-launch-button';
 import Alert from '../../components/Alert';
 import Spinner from '../../components/Spinner';
@@ -28,7 +27,7 @@ interface ImprovClosedEvent extends CustomEvent {
 	};
 }
 
-export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
+export default function ConfigureStep({ context }: UpdateESPFirmwareWizardStepProps) {
 	const improvButtonRef = useRef<HTMLElement | null>(null);
 	const navigatedToSummaryRef = useRef<boolean>(false);
 
@@ -123,7 +122,7 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 					Configure WiFi
 				</h3>
 				<p className="text-gray-600 dark:text-gray-300">
-					Set up WiFi credentials for your ZWA-2
+					Set up WiFi credentials for your {context.labels.deviceName}
 				</p>
 			</div>
 
@@ -138,7 +137,7 @@ export default function ConfigureStep({ context }: WizardStepProps<UpdateESPFirm
 
 			<Alert title="Note">
 				<p>
-					You can skip this step, but you won't be able to use the ZWA-2 until it's connected to WiFi.
+					You can skip this step, but you won't be able to use the {context.labels.deviceName} until it's connected to WiFi.
 				</p>
 			</Alert>
 

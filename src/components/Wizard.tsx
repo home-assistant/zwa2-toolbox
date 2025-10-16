@@ -18,8 +18,9 @@ export interface BaseWizardContext {
   onDisconnect?: () => Promise<void>;
 }
 
-export interface WizardContext<T = unknown> extends BaseWizardContext {
+export interface WizardContext<T = unknown, L = unknown> extends BaseWizardContext {
   state: T;
+  labels: L;
   setState: (updater: T | ((prev: T) => T)) => void;
   goToStep: (stepName: string) => void;
   autoNavigateToNext: () => Promise<void>;
@@ -29,49 +30,50 @@ export interface WizardContext<T = unknown> extends BaseWizardContext {
   afterConnect: () => Promise<boolean>;
 }
 
-export interface NavigationButton<T = unknown> {
-  label: string | ((context: WizardContext<T>) => string);
+export interface NavigationButton<T = unknown, L = unknown> {
+  label: string | ((context: WizardContext<T, L>) => string);
   variant?: 'primary' | 'secondary';
-  beforeNavigate?: (context: WizardContext<T>) => Promise<boolean | number>;
-  disabled?: (context: WizardContext<T>) => boolean;
+  beforeNavigate?: (context: WizardContext<T, L>) => Promise<boolean | number>;
+  disabled?: (context: WizardContext<T, L>) => boolean;
 }
 
-export interface WizardStepConfig<T = unknown> {
+export interface WizardStepConfig<T = unknown, L = unknown> {
   name: string;
-  component: React.ComponentType<WizardStepProps<T>>;
+  component: React.ComponentType<WizardStepProps<T, L>>;
   navigationButtons?: {
     next?: NavigationButton<T>;
     back?: NavigationButton<T>;
     cancel?: NavigationButton<T>;
   };
-  blockBrowserNavigation?: (context: WizardContext<T>) => boolean;
-  onEnter?: (context: WizardContext<T>) => Promise<void> | void;
+  blockBrowserNavigation?: (context: WizardContext<T, L>) => boolean;
+  onEnter?: (context: WizardContext<T, L>) => Promise<void> | void;
   isFinal?: boolean;
 }
 
-export interface WizardStepProps<T = unknown> {
-  context: WizardContext<T>;
+export interface WizardStepProps<T = unknown, L = unknown> {
+  context: WizardContext<T, L>;
 }
 
-export interface WizardConfig<T = unknown> {
+export interface WizardConfig<T = unknown, L = unknown> {
   id: string;
   title: string;
   description: string;
   icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean }>;
   iconForeground: string;
   iconBackground: string;
-  steps: WizardStepConfig<T>[];
+  steps: WizardStepConfig<T, L>[];
   createInitialState: () => T;
+  labels?: L;
   standalone?: boolean;
 }
 
-interface WizardProps<T = unknown> {
-  config: WizardConfig<T>;
+interface WizardProps<T = unknown, L = unknown> {
+  config: WizardConfig<T, L>;
   baseContext: BaseWizardContext;
   onClose?: () => void;
 }
 
-export default function Wizard<T = unknown>({ config, baseContext, onClose }: WizardProps<T>) {
+export default function Wizard<T = unknown, L = unknown>({ config, baseContext, onClose }: WizardProps<T, L>) {
   const [currentStepIndex, setCurrentStepIndex] = useState(0);
   const [state, setState] = useState<T>(() => config.createInitialState());
 
@@ -107,7 +109,7 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
   }, [baseContext.connectionState]);
 
   // Create the full wizard context
-  const context: WizardContext<T> = useMemo(() => ({
+  const context: WizardContext<T, L> = useMemo(() => ({
     ...baseContext,
     state,
     setState,
@@ -143,7 +145,8 @@ export default function Wizard<T = unknown>({ config, baseContext, onClose }: Wi
       zwaveBindingRef.current = binding;
     },
     afterConnect,
-  }), [baseContext, state, config.steps, afterConnect, currentStep.navigationButtons?.next, currentStepIndex, onClose]);
+    labels: config.labels as L,
+  }), [baseContext, state, config.steps, config.labels, afterConnect, currentStep.navigationButtons?.next, currentStepIndex, onClose]);
 
   // Convert steps to the format expected by ProgressSteps
   const progressSteps = useMemo(() =>

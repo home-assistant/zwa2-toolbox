@@ -3,7 +3,7 @@ import ConnectStep from "../../components/steps/ConnectStep";
 import FileSelectStep from "./FileSelectStep";
 import FlashStep from "./FlashStep";
 import SummaryStep from "./SummaryStep.tsx";
-import type { WizardConfig, WizardContext } from "../../components/Wizard";
+import type { WizardConfig, WizardContext, WizardStepProps } from "../../components/Wizard";
 import { downloadLatestFirmware } from "../../lib/firmware-download";
 import { DriverMode } from "zwave-js";
 
@@ -20,6 +20,8 @@ export interface InstallFirmwareState {
 	currentSubStep: number;
 	isDownloading: boolean;
 }
+
+export type InstallFirmwareWizardStepProps = WizardStepProps<InstallFirmwareState>;
 
 async function handleInstallStepEntry(context: WizardContext<InstallFirmwareState>): Promise<void> {
 	const { flashResult, isFlashing, selectedFirmware } = context.state;
