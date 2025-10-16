@@ -1,12 +1,11 @@
 import { LinkIcon } from '@heroicons/react/24/outline';
 import { useEffect, useRef } from 'react';
-import type { WizardStepProps } from '../../components/Wizard';
-import type { UpdateESPFirmwareState } from './wizard';
+import type { UpdateESPFirmwareWizardStepProps } from './wizard';
 
 /**
  * Connect step for ESP firmware wizard that follows the standard ConnectStep pattern
  */
-export default function ESPConnectStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
+export default function ESPConnectStep({ context }: UpdateESPFirmwareWizardStepProps) {
   const isConnected = context.connectionState.status === 'connected';
   const serialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;
 
@@ -31,19 +30,23 @@ export default function ESPConnectStep({ context }: WizardStepProps<UpdateESPFir
     prevSerialPort.current = serialPort;
   }, [serialPort, context]);
 
+  const { deviceName, serialportLabel, espVariant } = context.labels;
+
+  // Build the connection description, conditionally including serialportLabel
+  const connectionDescription = isConnected
+    ? `Successfully connected to your ${deviceName}.`
+    : `First, we need to establish a connection to your ${deviceName}. Depending on the ESP firmware, the device will be called ${serialportLabel ? `"${serialportLabel}", ` : ""}"${espVariant}" or "USB JTAG/serial debug unit".`;
+
   return (
     <div className="text-center py-8">
       <div className={`mb-4 ${isConnected ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-600'}`}>
         <LinkIcon className="w-16 h-16 mx-auto" />
       </div>
       <h3 className="text-lg font-medium text-primary mb-2">
-        {isConnected ? 'ZWA-2 Connected' : 'Connect to ZWA-2'}
+        {isConnected ? `${deviceName} Connected` : `Connect to ${deviceName}`}
       </h3>
       <p className="text-gray-600 dark:text-gray-300 mb-6">
-        {isConnected
-          ? 'Successfully connected to your ZWA-2.'
-          : 'First, we need to establish a connection to your ZWA-2. Depending on the ESP firmware, the device will be called "ZWA-2", "ESP32-S3" or "USB JTAG/serial debug unit".'
-        }
+        {connectionDescription}
       </p>
       {!isConnected && (
         <button

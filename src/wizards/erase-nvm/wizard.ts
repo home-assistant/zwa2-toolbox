@@ -3,7 +3,7 @@ import ConnectStep from "../../components/steps/ConnectStep";
 import ConfirmStep from "./ConfirmStep";
 import EraseStep from "./EraseStep";
 import SummaryStep from "./SummaryStep";
-import type { WizardConfig, WizardContext } from "../../components/Wizard";
+import type { WizardConfig, WizardContext, WizardStepProps } from "../../components/Wizard";
 import { DriverMode } from "zwave-js";
 
 export interface EraseNVMState {
@@ -13,6 +13,8 @@ export interface EraseNVMState {
 	eraseResult: "success" | "warning" | "error" | null;
 	errorMessage: string;
 }
+
+export type EraseNVMWizardStepProps = WizardStepProps<EraseNVMState>;
 
 // FIXME: We should distinguish between erasing the NVM and simply factory resetting a Z-Wave controller (hard reset)
 

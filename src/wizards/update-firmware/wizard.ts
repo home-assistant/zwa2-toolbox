@@ -2,7 +2,7 @@ import { CloudArrowUpIcon } from "@heroicons/react/24/outline";
 import ConnectStep from "../../components/steps/ConnectStep";
 import FileSelectStep from "./FileSelectStep";
 import FlashStep from "./FlashStep";
-import type { WizardConfig, WizardContext } from "../../components/Wizard";
+import type { WizardConfig, WizardContext, WizardStepProps } from "../../components/Wizard";
 import { openFirmwareFile } from "../../lib/firmware-download";
 
 export interface UpdateFirmwareState {
@@ -11,6 +11,8 @@ export interface UpdateFirmwareState {
 	progress: number;
 	isComplete: boolean;
 }
+
+export type UpdateFirmwareWizardStepProps = WizardStepProps<UpdateFirmwareState>;
 
 async function handleUpdateNavigation(
 	context: WizardContext<UpdateFirmwareState>,

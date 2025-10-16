@@ -1,13 +1,12 @@
 import { useCallback, useEffect, useRef } from 'react';
 import { LinkIcon, LinkSlashIcon } from '@heroicons/react/24/outline';
-import type { WizardStepProps } from '../../components/Wizard';
-import type { UpdateESPFirmwareState } from './wizard';
+import type { UpdateESPFirmwareWizardStepProps } from './wizard';
 import { flashESPFirmwareWithData } from './wizard';
 import CircularProgress from '../../components/CircularProgress';
 import Alert from '../../components/Alert';
 import Spinner from '../../components/Spinner';
 
-export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwareState>) {
+export default function InstallStep({ context }: UpdateESPFirmwareWizardStepProps) {
 	const { installState } = context.state;
 
 	const prevSerialPort = useRef<SerialPort | null>(null);
@@ -182,7 +181,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 						}
 					</p>
 					<p className="text-gray-600 dark:text-gray-300">
-						The device is usually called "ESP32-S3" or "USB JTAG/serial debug unit".
+						The device is usually called "{context.labels.espVariant}" or "USB JTAG/serial debug unit".
 					</p>
 				</div>
 
@@ -199,9 +198,9 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 						{bootloaderEntryFailed && (
 							<Alert title="To trigger the bootloader manually">
 								<ol className="list-decimal pl-6 my-2 space-y-1">
-									<li>Unplug the ZWA-2 and open it up</li>
+									<li>Unplug the {context.labels.deviceName} and open it up</li>
 									<li>On the top right of the PCB, under "ESP GPIO pins", bridge GPIO0 and GND with something conductive</li>
-									<li>Plug the ZWA-2 back in</li>
+									<li>Plug the {context.labels.deviceName} back in</li>
 									<li>Retry connecting</li>
 								</ol>
 								<span className="block mt-2">Don't forget to remove the bridge after flashing!</span>
@@ -246,7 +245,7 @@ export default function InstallStep({ context }: WizardStepProps<UpdateESPFirmwa
 					Firmware installed successfully
 				</h3>
 				<p className="text-gray-600 dark:text-gray-300">
-					Please power cycle your ZWA-2 to activate the new firmware.
+					Please power cycle your {context.labels.deviceName} to activate the new firmware.
 				</p>
 		</div>
 		);

@@ -6,7 +6,10 @@ import { updateESPBridgeWizardConfig } from "../wizards/update-esp-firmware";
 import { useBaseWizardContext } from "../hooks/useBaseWizardContext";
 import styles from "../index.css?inline";
 import type { WizardConfig } from "../components/Wizard";
-import type { UpdateESPFirmwareState } from "../wizards/update-esp-firmware";
+import type {
+	UpdateESPFirmwareState,
+	UpdateESPFirmwareLabels,
+} from "../wizards/update-esp-firmware";
 
 export interface InstallESPBridgeFirmwareProps {
 	/**
@@ -20,6 +23,24 @@ export interface InstallESPBridgeFirmwareProps {
 	 * This will be displayed in the wizard UI to identify the firmware.
 	 */
 	label?: string;
+
+	/**
+	 * Device name to display in the UI (standalone usage).
+	 * Defaults to "ZWA-2".
+	 */
+	device_name?: string;
+
+	/**
+	 * Device label for contextual usage (e.g., "the device will be called...").
+	 * Defaults to "ZWA-2".
+	 */
+	serialport_label?: string;
+
+	/**
+	 * ESP variant name (e.g., "ESP32-S3" or "USB JTAG/serial debug unit").
+	 * Defaults to "ESP32-S3".
+	 */
+	esp_variant?: string;
 }
 
 /**
@@ -29,49 +50,78 @@ export interface InstallESPBridgeFirmwareProps {
 function createWizardConfig(
 	manifest?: string,
 	label?: string,
-): WizardConfig<UpdateESPFirmwareState> {
-	if (!manifest && !label) {
+	deviceName?: string,
+	serialportLabel?: string,
+	espVariant?: string,
+): WizardConfig<UpdateESPFirmwareState, UpdateESPFirmwareLabels> {
+	if (
+		![manifest, label, deviceName, serialportLabel, espVariant].some(
+			Boolean,
+		)
+	) {
 		// Use default config if no customization
 		return updateESPBridgeWizardConfig;
 	}
 
-	// Create a customized config with overridden manifest and/or label
-	const customConfig: WizardConfig<UpdateESPFirmwareState> = {
+	// Create a customized config with overridden manifest, labels, etc.
+	const defaultLabels = updateESPBridgeWizardConfig.labels!;
+	const customConfig: WizardConfig<
+		UpdateESPFirmwareState,
+		UpdateESPFirmwareLabels
+	> = {
 		...updateESPBridgeWizardConfig,
 		createInitialState: () => {
-			const defaultState = updateESPBridgeWizardConfig.createInitialState();
+			const defaultState =
+				updateESPBridgeWizardConfig.createInitialState();
 
-			if (manifest || label) {
-				return {
-					...defaultState,
-					selectedFirmware: {
-						type: "manifest",
-						manifestId: "custom", // Use a custom ID for override manifests
-						label: label || defaultState.selectedFirmware?.label || "Custom firmware",
-						// Store the custom manifest URL in a way that can be accessed during installation
-						...(manifest && { manifestUrl: manifest }),
-					},
-				};
-			}
-
-			return defaultState;
+			return {
+				...defaultState,
+				...(manifest || label
+					? {
+							selectedFirmware: {
+								type: "manifest",
+								manifestId: "custom", // Use a custom ID for override manifests
+								label:
+									label ||
+									defaultState.selectedFirmware?.label ||
+									"Custom firmware",
+								// Store the custom manifest URL in a way that can be accessed during installation
+								...(manifest && { manifestUrl: manifest }),
+							},
+						}
+					: {}),
+			};
+		},
+		labels: {
+			deviceName: deviceName ?? defaultLabels.deviceName,
+			serialportLabel: serialportLabel ?? defaultLabels.serialportLabel,
+			espVariant: espVariant ?? defaultLabels.espVariant,
 		},
 	};
 
 	return customConfig;
 }
 
-function InstallESPBridgeFirmwareWizard({ manifest, label }: InstallESPBridgeFirmwareProps) {
+function InstallESPBridgeFirmwareWizard({
+	manifest,
+	label,
+	device_name,
+	serialport_label,
+	esp_variant,
+}: InstallESPBridgeFirmwareProps) {
 	const baseContext = useBaseWizardContext();
-	const wizardConfig = createWizardConfig(manifest, label);
+	const wizardConfig = createWizardConfig(
+		manifest,
+		label,
+		device_name,
+		serialport_label,
+		esp_variant,
+	);
 
 	return (
 		<>
 			<style>{styles}</style>
-			<Wizard
-				config={wizardConfig}
-				baseContext={baseContext}
-			/>
+			<Wizard config={wizardConfig} baseContext={baseContext} />
 		</>
 	);
 }
@@ -85,6 +135,9 @@ const InstallESPBridgeFirmwareWebComponent = r2wc(
 		props: {
 			manifest: "string",
 			label: "string",
+			device_name: "string",
+			serialport_label: "string",
+			esp_variant: "string",
 		},
 	},
 );

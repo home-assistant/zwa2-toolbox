@@ -3,7 +3,7 @@ import ConnectStep from "../../components/steps/ConnectStep";
 import DiagnoseStep from "./DiagnoseStep.tsx";
 import RecoveryStep from "./RecoveryStep.tsx";
 import SummaryStep from "./SummaryStep.tsx";
-import type { WizardConfig, WizardContext } from "../../components/Wizard";
+import type { WizardConfig, WizardContext, WizardStepProps } from "../../components/Wizard";
 import { DriverMode } from "zwave-js";
 import type { ReactNode } from "react";
 import { downloadLatestFirmware, openFirmwareFile } from "../../lib/firmware-download";
@@ -38,6 +38,8 @@ export interface RecoverAdapterState {
 	recoveryError: string | null;
 	downloadedFirmwareName: string | null;
 }
+
+export type RecoverAdapterWizardStepProps = WizardStepProps<RecoverAdapterState>;
 
 async function handleRecoveryNavigation(
 	context: WizardContext<RecoverAdapterState>,
