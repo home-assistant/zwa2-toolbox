@@ -1,15 +1,16 @@
 import React from "react";
 import ReactDOM from "react-dom/client";
 import r2wc from "react-to-webcomponent";
+import WebSerialWarning from "../components/WebSerialWarning";
+import type { WizardConfig } from "../components/Wizard";
 import Wizard from "../components/Wizard";
-import { updateESPBridgeWizardConfig } from "../wizards/update-esp-firmware";
 import { useBaseWizardContext } from "../hooks/useBaseWizardContext";
 import styles from "../index.css?inline";
-import type { WizardConfig } from "../components/Wizard";
 import type {
-	UpdateESPFirmwareState,
 	UpdateESPFirmwareLabels,
+	UpdateESPFirmwareState,
 } from "../wizards/update-esp-firmware";
+import { updateESPBridgeWizardConfig } from "../wizards/update-esp-firmware";
 
 export interface InstallESPBridgeFirmwareProps {
 	/**
@@ -117,6 +118,19 @@ function InstallESPBridgeFirmwareWizard({
 		serialport_label,
 		esp_variant,
 	);
+
+	if (!("serial" in navigator)) {
+		return (
+			<>
+				<style>{styles}</style>
+				<div className="bg-app-primary min-h-screen px-6 py-24 sm:py-32 lg:px-8">
+					<div className="max-w-7xl mx-auto">
+						<WebSerialWarning />
+					</div>
+				</div>
+			</>
+		);
+	}
 
 	return (
 		<>
