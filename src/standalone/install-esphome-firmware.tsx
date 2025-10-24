@@ -14,10 +14,8 @@ function InstallESPHomeFirmwareWizard() {
 		return (
 			<>
 				<style>{styles}</style>
-				<div className="bg-app-primary min-h-screen px-6 py-24 sm:py-32 lg:px-8">
-					<div className="max-w-7xl mx-auto">
-						<WebSerialWarning />
-					</div>
+				<div className="bg-app-primary min-h-screen">
+					<WebSerialWarning />
 				</div>
 			</>
 		);
