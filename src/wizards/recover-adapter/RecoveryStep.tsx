@@ -1,10 +1,30 @@
 import { useState } from 'react';
 import type { WizardStepProps } from '../../components/Wizard';
 import type { RecoverAdapterState } from './wizard';
+import Spinner from '../../components/Spinner';
 
 export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapterState>) {
   const { diagnosisResult, selectedFile, isRecovering, recoveryProgress, downloadedFirmwareName } = context.state;
   const [useCustomFirmware, setUseCustomFirmware] = useState(false);
+
+  // ==============================================================
+  // Recovery status display
+
+  if (isRecovering && diagnosisResult?.tag === "INVALID_CONTROLLER_NODE_ID_239") {
+    return (
+      <div className="py-8">
+        <h3 className="text-lg font-medium text-primary mb-4">
+          Recovering Adapter
+        </h3>
+        <div className="text-center py-4">
+          <Spinner className="mx-auto mb-4" />
+          <p className="text-gray-600 dark:text-gray-300">
+            Correcting controller node ID...
+          </p>
+        </div>
+      </div>
+    );
+  }
 
   if (isRecovering) {
     return (
@@ -13,11 +33,11 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
           Recovering Adapter
         </h3>
         <p className="text-gray-600 dark:text-gray-300 mb-6">
-            { downloadedFirmwareName ? (
-                <>Installing latest firmware: {downloadedFirmwareName}</>
-            ) : (
-                <>Installing firmware: {selectedFile?.name || "Latest firmware"}</>
-            )}
+          {downloadedFirmwareName ? (
+            <>Installing latest firmware: {downloadedFirmwareName}</>
+          ) : (
+            <>Installing firmware: {selectedFile?.name || "Latest firmware"}</>
+          )}
         </p>
         <div className="mb-6">
           <div className="flex justify-between text-sm text-gray-600 dark:text-gray-300 mb-1">
@@ -31,6 +51,23 @@ export default function RecoveryStep({ context }: WizardStepProps<RecoverAdapter
             />
           </div>
         </div>
+      </div>
+    );
+  }
+
+  // ==============================================================
+  // Diagnosis display / Recovery info
+
+  if (diagnosisResult?.tag === "INVALID_CONTROLLER_NODE_ID_239") {
+    return (
+      <div className="py-8">
+        <h3 className="text-lg font-medium text-primary mb-4">
+          Recover Invalid Controller Node ID
+        </h3>
+        <p className="text-gray-600 dark:text-gray-300">
+          Your controller has an invalid controller node ID, which is caused by a rare bug in the
+          Z-Wave SDK. To correct this, press &ldquo;Start Recovery&rdquo;.
+        </p>
       </div>
     );
   }

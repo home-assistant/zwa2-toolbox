@@ -23,6 +23,12 @@ import {
 	type FirmwareFileFormat,
 } from "zwave-js";
 import { resetZWaveChipViaCommandMode } from "./esp-utils";
+import { NodeIDType, NodeType } from "@zwave-js/core/definitions";
+
+export interface ZWaveBindingInitOptions {
+	/** Skip controller identification during driver startup. Useful for recovery when the chip firmware may be partially functional. */
+	skipControllerIdentification?: boolean;
+}
 
 export class ZWaveBinding {
 	private driver?: Driver;
@@ -39,8 +45,8 @@ export class ZWaveBinding {
 		this.serialBinding = createWebSerialPortFactory(port);
 	}
 
-	async initialize(): Promise<boolean> {
-		return await this.createDriver();
+	async initialize(options: ZWaveBindingInitOptions = {}): Promise<boolean> {
+		return await this.createDriver(options);
 	}
 
 	async resetToBootloader(): Promise<boolean> {
@@ -57,10 +63,9 @@ export class ZWaveBinding {
 			}
 		}
 
-		// Now we use the ESP for triggering a hardware reset into bootloader
+		// Now we use the ESP for triggering a hardware reset into bootloader.
+		// Destroy the driver first; createDriver() will recreate the binding.
 		await this.driver?.destroy();
-		// This invalidates our current serial binding, so we need to recreate it
-		this.serialBinding = createWebSerialPortFactory(this.port);
 
 		// ===
 		// Attempt 2: Legacy RTS/DTR procedure
@@ -96,7 +101,7 @@ export class ZWaveBinding {
 
 		// ===
 		// Attempt 3: Command mode with BZ command
-		// Destroy the current driver first
+		// Destroy the current driver first; createDriver() will recreate the binding.
 		if (this.driver) {
 			await this.driver.destroy().catch(() => {});
 		}
@@ -111,7 +116,6 @@ export class ZWaveBinding {
 
 		// Recreate serial binding after command mode operations
 		await this.port.open({ baudRate: 115200 });
-		this.serialBinding = createWebSerialPortFactory(this.port);
 
 		// Wait 500ms and check if bootloader was entered
 		await wait(500);
@@ -142,10 +146,15 @@ export class ZWaveBinding {
 		}
 	}
 
-	private async createDriver(): Promise<boolean> {
+	private async createDriver(
+		options: ZWaveBindingInitOptions = {},
+	): Promise<boolean> {
 		if (this.driver) {
 			this.driver.removeAllListeners();
 			await this.driver.destroy().catch(() => {});
+			// Destroying the driver closes the serial port streams, invalidating the
+			// existing binding. Recreate it so the next driver gets a fresh one.
+			this.serialBinding = createWebSerialPortFactory(this.port);
 		}
 
 		this.driver = new Driver(this.serialBinding!, {
@@ -160,6 +169,8 @@ export class ZWaveBinding {
 			testingHooks: {
 				skipNodeInterview: true,
 				loadConfiguration: false,
+				skipControllerIdentification:
+					options.skipControllerIdentification,
 			},
 			bootloaderMode: "stay",
 		})
@@ -325,6 +336,82 @@ export class ZWaveBinding {
 
 	isInBootloaderMode(): boolean {
 		return this.driver?.mode === DriverMode.Bootloader;
+	}
+
+	async detectInvalidControllerNodeID239(): Promise<boolean> {
+		await this.createDriver({ skipControllerIdentification: true });
+		if (!this.driver) {
+			throw new Error("Driver initialization failed");
+		}
+
+		// @ts-expect-error This is an internal method
+		const { nodeIds } = await this.driver.controller.queryCapabilities();
+		await this.driver.controller.trySetNodeIDType(NodeIDType.Long);
+		// @ts-expect-error This is an internal method
+		await this.driver.controller.identify();
+
+		const isInvalid =
+			!nodeIds.includes(1) && this.driver.controller.ownNodeId === 239;
+
+		return isInvalid;
+	}
+
+	async fixInvalidControllerNodeID239(): Promise<void> {
+		const nodeIds = [1, ...this.driver!.controller.nodes.keys()];
+		const nvm = this.driver!.controller.nvm;
+
+		// Set the controller node ID back to 1
+		await nvm.set(
+			{
+				domain: "controller",
+				type: "nodeId",
+			},
+			1,
+		);
+		// And set it as the SUC
+		await nvm.set(
+			{
+				domain: "controller",
+				type: "staticControllerNodeId",
+			},
+			1,
+		);
+		// Restore the node information
+		await nvm.set(
+			{
+				domain: "node",
+				nodeId: 1,
+				type: "info",
+			},
+			{
+				nodeId: 1,
+				isListening: true,
+				isFrequentListening: false,
+				isRouting: true,
+				supportedDataRates: [40000, 100000],
+				protocolVersion: 3,
+				optionalFunctionality: false,
+				nodeType: NodeType.Controller,
+				supportsSecurity: false,
+				supportsBeaming: true,
+				genericDeviceClass: 2,
+				specificDeviceClass: 1,
+				neighbors: [],
+				sucUpdateIndex: 255,
+			},
+		);
+		// And update the node list
+		await nvm.set(
+			{
+				domain: "controller",
+				type: "nodeIds",
+			},
+			nodeIds,
+		);
+
+		// Save and apply changes
+		await nvm.commit();
+		await this.driver!.softReset();
 	}
 
 	async disconnect(): Promise<void> {

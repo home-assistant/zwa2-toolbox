@@ -48,6 +48,27 @@ function getRecoveryResult(state: RecoverAdapterState): RecoveryResult {
         )
       };
 
+    case "FIXED_CONTROLLER_NODE_ID_239":
+      return {
+        tag: "FIXED_CONTROLLER_NODE_ID_239",
+        severity: "success",
+        message: (
+          <div>
+            <p>The invalid controller node ID on your ZWA-2 adapter has been successfully corrected.</p>
+          </div>
+        )
+      };
+    case "FIXING_CONTROLLER_NODE_ID_239_FAILED":
+      return {
+        tag: "FIXING_CONTROLLER_NODE_ID_239_FAILED",
+        severity: "error",
+        message: (
+          <div>
+            <p>Failed to correct the invalid controller node ID on your ZWA-2 adapter.</p>
+            <p className="mt-2">Please try running the recovery wizard again, or contact support if the problem persists.</p>
+          </div>
+        )
+      };
     case "END_DEVICE_CLI":
       return {
         tag: "END_DEVICE_CLI",
@@ -140,6 +161,10 @@ function getResultTitle(result: RecoveryResult): string {
     case "STARTED_APPLICATION":
     case "RECOVERED":
       return "Adapter successfully recovered";
+    case "FIXED_CONTROLLER_NODE_ID_239":
+      return "Controller node ID corrected";
+    case "FIXING_CONTROLLER_NODE_ID_239_FAILED":
+      return "Failed to correct controller node ID";
     case "END_DEVICE_CLI":
       return "Wrong firmware detected";
     case "CONNECTION_FAILED":
