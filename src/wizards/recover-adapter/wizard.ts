@@ -7,6 +7,7 @@ import type { WizardConfig, WizardContext, WizardStepProps } from "../../compone
 import { DriverMode } from "zwave-js";
 import type { ReactNode } from "react";
 import { downloadLatestFirmware, openFirmwareFile } from "../../lib/firmware-download";
+import { type BytesView } from "@zwave-js/shared";
 
 export type DiagnosisResult =
 	| { tag: "NO_ISSUES" }
@@ -86,7 +87,7 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 		};
 
 		let fileName: string;
-		let firmwareData: Uint8Array;
+		let firmwareData: BytesView;
 
 		if (selectedFile) {
 			// Extract firmware from custom file

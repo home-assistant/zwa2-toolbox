@@ -39,7 +39,7 @@
 		"typescript": "^5.9.2",
 		"typescript-eslint": "^8.41.0",
 		"vite": "^7.1.11",
-		"zwave-js": "^15.12.1-0-pr-8133-cc4ed84"
+		"zwave-js": "^15.21.0"
 	},
 	"dependencies": {
 		"improv-wifi-serial-sdk": "^2.5.0"
