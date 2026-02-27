@@ -28,7 +28,7 @@
 		"eslint": "^9.34.0",
 		"eslint-plugin-react-hooks": "^5.2.0",
 		"eslint-plugin-react-refresh": "^0.4.20",
-		"esptool-js": "^0.5.7",
+		"esptool-js": "file:./esptool-js-0.5.7.tgz",
 		"globals": "^16.3.0",
 		"postcss": "^8.5.6",
 		"prettier": "^3.6.2",
