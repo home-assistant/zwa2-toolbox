@@ -120,7 +120,6 @@ export async function flashESPFirmwareWithData(
 		const loaderOptions: LoaderOptions = {
 			transport,
 			baudrate: 115200,
-			romBaudrate: 115200,
 			enableTracing: false,
 			debugLogging: false,
 		};
