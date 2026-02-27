@@ -63,10 +63,9 @@ export class ZWaveBinding {
 			}
 		}
 
-		// Now we use the ESP for triggering a hardware reset into bootloader
+		// Now we use the ESP for triggering a hardware reset into bootloader.
+		// Destroy the driver first; createDriver() will recreate the binding.
 		await this.driver?.destroy();
-		// This invalidates our current serial binding, so we need to recreate it
-		this.serialBinding = createWebSerialPortFactory(this.port);
 
 		// ===
 		// Attempt 2: Legacy RTS/DTR procedure
@@ -102,7 +101,7 @@ export class ZWaveBinding {
 
 		// ===
 		// Attempt 3: Command mode with BZ command
-		// Destroy the current driver first
+		// Destroy the current driver first; createDriver() will recreate the binding.
 		if (this.driver) {
 			await this.driver.destroy().catch(() => {});
 		}
@@ -117,7 +116,6 @@ export class ZWaveBinding {
 
 		// Recreate serial binding after command mode operations
 		await this.port.open({ baudRate: 115200 });
-		this.serialBinding = createWebSerialPortFactory(this.port);
 
 		// Wait 500ms and check if bootloader was entered
 		await wait(500);
@@ -154,6 +152,9 @@ export class ZWaveBinding {
 		if (this.driver) {
 			this.driver.removeAllListeners();
 			await this.driver.destroy().catch(() => {});
+			// Destroying the driver closes the serial port streams, invalidating the
+			// existing binding. Recreate it so the next driver gets a fresh one.
+			this.serialBinding = createWebSerialPortFactory(this.port);
 		}
 
 		this.driver = new Driver(this.serialBinding!, {
@@ -352,7 +353,6 @@ export class ZWaveBinding {
 		const isInvalid =
 			!nodeIds.includes(1) && this.driver.controller.ownNodeId === 239;
 
-		await this.driver.destroy();
 		return isInvalid;
 	}
 
