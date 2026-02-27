@@ -6,7 +6,7 @@ import {
 	BootloaderChunkType,
 	type ZWaveSerialBindingFactory,
 } from "@zwave-js/serial";
-import { Bytes, getErrorMessage } from "@zwave-js/shared";
+import { Bytes, type BytesView, getErrorMessage } from "@zwave-js/shared";
 import { wait } from "alcalzone-shared/async";
 import {
 	type DeferredPromise,
@@ -206,7 +206,7 @@ export class ZWaveBinding {
 
 	async flashFirmware(
 		fileName: string,
-		firmwareData: Uint8Array,
+		firmwareData: BytesView,
 	): Promise<boolean> {
 		if (!this.driver) {
 			this.onError?.("Driver not initialized");

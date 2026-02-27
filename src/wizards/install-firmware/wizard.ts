@@ -6,6 +6,7 @@ import SummaryStep from "./SummaryStep.tsx";
 import type { WizardConfig, WizardContext, WizardStepProps } from "../../components/Wizard";
 import { downloadLatestFirmware } from "../../lib/firmware-download";
 import { DriverMode } from "zwave-js";
+import { type BytesView } from "@zwave-js/shared";
 
 export type FirmwareOption =
 	| { type: "latest-controller" };
@@ -70,7 +71,7 @@ async function handleInstallStepEntry(context: WizardContext<InstallFirmwareStat
 		};
 
 		let fileName: string;
-		let firmwareData: Uint8Array;
+		let firmwareData: BytesView;
 
 		// Download latest firmware based on selected option
 		if (selectedFirmware.type === "latest-controller") {
