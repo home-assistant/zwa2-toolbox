@@ -143,7 +143,7 @@ export async function flashESPFirmwareWithData(
 		// Flash firmware at the offset specified in the manifest
 		const flashOptions: FlashOptions = {
 			fileArray: [{
-				data: esploader.ui8ToBstr(firmwareData),
+				data: firmwareData,
 				address: firmwareOffset,
 			}],
 			flashSize: "keep",
