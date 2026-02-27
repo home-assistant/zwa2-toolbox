@@ -23,6 +23,12 @@ import {
 	type FirmwareFileFormat,
 } from "zwave-js";
 import { resetZWaveChipViaCommandMode } from "./esp-utils";
+import { NodeIDType, NodeType } from "@zwave-js/core/definitions";
+
+export interface ZWaveBindingInitOptions {
+	/** Skip controller identification during driver startup. Useful for recovery when the chip firmware may be partially functional. */
+	skipControllerIdentification?: boolean;
+}
 
 export class ZWaveBinding {
 	private driver?: Driver;
@@ -39,8 +45,8 @@ export class ZWaveBinding {
 		this.serialBinding = createWebSerialPortFactory(port);
 	}
 
-	async initialize(): Promise<boolean> {
-		return await this.createDriver();
+	async initialize(options: ZWaveBindingInitOptions = {}): Promise<boolean> {
+		return await this.createDriver(options);
 	}
 
 	async resetToBootloader(): Promise<boolean> {
@@ -142,7 +148,9 @@ export class ZWaveBinding {
 		}
 	}
 
-	private async createDriver(): Promise<boolean> {
+	private async createDriver(
+		options: ZWaveBindingInitOptions = {},
+	): Promise<boolean> {
 		if (this.driver) {
 			this.driver.removeAllListeners();
 			await this.driver.destroy().catch(() => {});
@@ -160,6 +168,8 @@ export class ZWaveBinding {
 			testingHooks: {
 				skipNodeInterview: true,
 				loadConfiguration: false,
+				skipControllerIdentification:
+					options.skipControllerIdentification,
 			},
 			bootloaderMode: "stay",
 		})
@@ -325,6 +335,83 @@ export class ZWaveBinding {
 
 	isInBootloaderMode(): boolean {
 		return this.driver?.mode === DriverMode.Bootloader;
+	}
+
+	async detectInvalidControllerNodeID239(): Promise<boolean> {
+		await this.createDriver({ skipControllerIdentification: true });
+		if (!this.driver) {
+			throw new Error("Driver initialization failed");
+		}
+
+		// @ts-expect-error This is an internal method
+		const { nodeIds } = await this.driver.controller.queryCapabilities();
+		await this.driver.controller.trySetNodeIDType(NodeIDType.Long);
+		// @ts-expect-error This is an internal method
+		await this.driver.controller.identify();
+
+		const isInvalid =
+			!nodeIds.includes(1) && this.driver.controller.ownNodeId === 239;
+
+		await this.driver.destroy();
+		return isInvalid;
+	}
+
+	async fixInvalidControllerNodeID239(): Promise<void> {
+		const nodeIds = [1, ...this.driver!.controller.nodes.keys()];
+		const nvm = this.driver!.controller.nvm;
+
+		// Set the controller node ID back to 1
+		await nvm.set(
+			{
+				domain: "controller",
+				type: "nodeId",
+			},
+			1,
+		);
+		// And set it as the SUC
+		await nvm.set(
+			{
+				domain: "controller",
+				type: "staticControllerNodeId",
+			},
+			1,
+		);
+		// Restore the node information
+		await nvm.set(
+			{
+				domain: "node",
+				nodeId: 1,
+				type: "info",
+			},
+			{
+				nodeId: 1,
+				isListening: true,
+				isFrequentListening: false,
+				isRouting: true,
+				supportedDataRates: [40000, 100000],
+				protocolVersion: 3,
+				optionalFunctionality: false,
+				nodeType: NodeType.Controller,
+				supportsSecurity: false,
+				supportsBeaming: true,
+				genericDeviceClass: 2,
+				specificDeviceClass: 1,
+				neighbors: [],
+				sucUpdateIndex: 255,
+			},
+		);
+		// And update the node list
+		await nvm.set(
+			{
+				domain: "controller",
+				type: "nodeIds",
+			},
+			nodeIds,
+		);
+
+		// Save and apply changes
+		await nvm.commit();
+		await this.driver!.softReset();
 	}
 
 	async disconnect(): Promise<void> {
