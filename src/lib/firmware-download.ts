@@ -1,15 +1,17 @@
+import { type BytesView } from "@zwave-js/shared";
+
 /**
  * Utility functions for downloading and verifying Z-Wave firmware from GitHub
  */
 
 export interface FirmwareDownloadResult {
 	fileName: string;
-	data: Uint8Array;
+	data: BytesView;
 }
 
 export interface FirmwareFileResult {
 	fileName: string;
-	data: Uint8Array;
+	data: BytesView;
 }
 
 export class FirmwareDownloadError extends Error {

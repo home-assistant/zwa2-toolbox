@@ -3,10 +3,18 @@ import ConnectStep from "../../components/steps/ConnectStep";
 import DiagnoseStep from "./DiagnoseStep.tsx";
 import RecoveryStep from "./RecoveryStep.tsx";
 import SummaryStep from "./SummaryStep.tsx";
-import type { WizardConfig, WizardContext, WizardStepProps } from "../../components/Wizard";
+import type {
+	WizardConfig,
+	WizardContext,
+	WizardStepProps,
+} from "../../components/Wizard";
 import { DriverMode } from "zwave-js";
 import type { ReactNode } from "react";
-import { downloadLatestFirmware, openFirmwareFile } from "../../lib/firmware-download";
+import {
+	downloadLatestFirmware,
+	openFirmwareFile,
+} from "../../lib/firmware-download";
+import { type BytesView } from "@zwave-js/shared";
 
 export type DiagnosisResult =
 	| { tag: "NO_ISSUES" }
@@ -15,6 +23,9 @@ export type DiagnosisResult =
 	| { tag: "STARTED_APPLICATION" }
 	| { tag: "UNKNOWN_FIRMWARE" }
 	| { tag: "CONNECTION_FAILED" }
+	| { tag: "INVALID_CONTROLLER_NODE_ID_239" }
+	| { tag: "FIXED_CONTROLLER_NODE_ID_239" }
+	| { tag: "FIXING_CONTROLLER_NODE_ID_239_FAILED" }
 	| { tag: "RECOVERY_FAILED" }
 	| { tag: "DOWNLOAD_FAILED" }
 	| { tag: "RECOVERED" };
@@ -39,7 +50,8 @@ export interface RecoverAdapterState {
 	downloadedFirmwareName: string | null;
 }
 
-export type RecoverAdapterWizardStepProps = WizardStepProps<RecoverAdapterState>;
+export type RecoverAdapterWizardStepProps =
+	WizardStepProps<RecoverAdapterState>;
 
 async function handleRecoveryNavigation(
 	context: WizardContext<RecoverAdapterState>,
@@ -60,12 +72,51 @@ async function handleRecoveryNavigation(
 		return false;
 	}
 
-	// Start recovery process
+	// Invalid node ID fix takes a different path from firmware flashing
+	if (diagnosisResult.tag === "INVALID_CONTROLLER_NODE_ID_239") {
+		await startFixInvalidControllerNodeID239(context);
+		return false;
+	}
+
+	// Start firmware recovery process
 	await startRecovery(context);
 	return false; // Stay on recovery step until recovery is complete
 }
 
-async function startRecovery(context: WizardContext<RecoverAdapterState>): Promise<boolean> {
+async function startFixInvalidControllerNodeID239(
+	context: WizardContext<RecoverAdapterState>,
+): Promise<void> {
+	if (!context.zwaveBinding) return;
+
+	try {
+		context.setState((prev) => ({
+			...prev,
+			isRecovering: true,
+			recoveryError: null,
+		}));
+
+		await context.zwaveBinding.fixInvalidControllerNodeID239();
+
+		context.setState((prev) => ({
+			...prev,
+			isRecovering: false,
+			finalResult: { tag: "FIXED_CONTROLLER_NODE_ID_239" },
+		}));
+	} catch (error) {
+		console.error("Failed to fix invalid controller node ID:", error);
+		context.setState((prev) => ({
+			...prev,
+			isRecovering: false,
+			finalResult: { tag: "FIXING_CONTROLLER_NODE_ID_239_FAILED" },
+		}));
+	}
+
+	context.goToStep("Summary");
+}
+
+async function startRecovery(
+	context: WizardContext<RecoverAdapterState>,
+): Promise<boolean> {
 	const { selectedFile, diagnosisResult } = context.state;
 
 	if (!context.zwaveBinding || !diagnosisResult) {
@@ -73,7 +124,7 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 	}
 
 	try {
-		context.setState(prev => ({
+		context.setState((prev) => ({
 			...prev,
 			isRecovering: true,
 			recoveryProgress: 0,
@@ -82,11 +133,14 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 
 		// Set up progress callback
 		context.zwaveBinding.onProgress = (progress: number) => {
-			context.setState(prev => ({ ...prev, recoveryProgress: progress }));
+			context.setState((prev) => ({
+				...prev,
+				recoveryProgress: progress,
+			}));
 		};
 
 		let fileName: string;
-		let firmwareData: Uint8Array;
+		let firmwareData: BytesView;
 
 		if (selectedFile) {
 			// Extract firmware from custom file
@@ -96,10 +150,10 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 				firmwareData = extracted.data;
 			} catch (error) {
 				console.error("Failed to load firmware from file:", error);
-				context.setState(prev => ({
+				context.setState((prev) => ({
 					...prev,
 					isRecovering: false,
-					finalResult: { tag: "RECOVERY_FAILED" }
+					finalResult: { tag: "RECOVERY_FAILED" },
 				}));
 				context.goToStep("Summary");
 				return false;
@@ -111,13 +165,16 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 				fileName = downloaded.fileName;
 				firmwareData = downloaded.data;
 				// Store the downloaded firmware name for display
-				context.setState(prev => ({ ...prev, downloadedFirmwareName: fileName }));
+				context.setState((prev) => ({
+					...prev,
+					downloadedFirmwareName: fileName,
+				}));
 			} catch (error) {
 				console.error("Failed to download latest firmware:", error);
-				context.setState(prev => ({
+				context.setState((prev) => ({
 					...prev,
 					isRecovering: false,
-					finalResult: { tag: "DOWNLOAD_FAILED" }
+					finalResult: { tag: "DOWNLOAD_FAILED" },
 				}));
 				context.goToStep("Summary");
 				return false;
@@ -125,36 +182,39 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 		}
 
 		// Flash the firmware
-		const success = await context.zwaveBinding.flashFirmware(fileName, firmwareData);
+		const success = await context.zwaveBinding.flashFirmware(
+			fileName,
+			firmwareData,
+		);
 
 		if (success) {
 			// Check the mode after recovery
 			const mode = context.zwaveBinding.getDriverMode();
 			if (mode === DriverMode.SerialAPI) {
-				context.setState(prev => ({
+				context.setState((prev) => ({
 					...prev,
 					isRecovering: false,
-					finalResult: { tag: "RECOVERED" }
+					finalResult: { tag: "RECOVERED" },
 				}));
 			} else if (selectedFile && mode !== DriverMode.Bootloader) {
 				// Custom firmware, not recognized as controller firmware
-				context.setState(prev => ({
+				context.setState((prev) => ({
 					...prev,
 					isRecovering: false,
-					finalResult: { tag: "END_DEVICE_CLI" }
+					finalResult: { tag: "END_DEVICE_CLI" },
 				}));
 			} else {
-				context.setState(prev => ({
+				context.setState((prev) => ({
 					...prev,
 					isRecovering: false,
-					finalResult: { tag: "RECOVERY_FAILED" }
+					finalResult: { tag: "RECOVERY_FAILED" },
 				}));
 			}
 		} else {
-			context.setState(prev => ({
+			context.setState((prev) => ({
 				...prev,
 				isRecovering: false,
-				finalResult: { tag: "RECOVERY_FAILED" }
+				finalResult: { tag: "RECOVERY_FAILED" },
 			}));
 		}
 
@@ -163,10 +223,10 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 		return success;
 	} catch (error) {
 		console.error("Recovery failed:", error);
-		context.setState(prev => ({
+		context.setState((prev) => ({
 			...prev,
 			isRecovering: false,
-			finalResult: { tag: "RECOVERY_FAILED" }
+			finalResult: { tag: "RECOVERY_FAILED" },
 		}));
 
 		// Always navigate to summary on error
@@ -175,9 +235,29 @@ async function startRecovery(context: WizardContext<RecoverAdapterState>): Promi
 	}
 }
 
-export async function diagnoseCorruptedFirmware(context: WizardContext<RecoverAdapterState>): Promise<DiagnosisResult> {
-	// Initialize the ZWave driver
-	if (!context.zwaveBinding || !(await context.zwaveBinding.initialize())) {
+export async function diagnoseCorruptedFirmware(
+	context: WizardContext<RecoverAdapterState>,
+): Promise<DiagnosisResult> {
+	if (!context.zwaveBinding) {
+		return { tag: "CONNECTION_FAILED" };
+	}
+
+	// First, without trying to identify the controller. This lets us detect whether the
+	// controller's own node ID is incorrectly set to the invalid ID 239
+	let isInvalidControllerNodeId = false;
+	try {
+		isInvalidControllerNodeId =
+			await context.zwaveBinding.detectInvalidControllerNodeID239();
+	} catch {
+		return { tag: "CONNECTION_FAILED" };
+	}
+
+	if (isInvalidControllerNodeId) {
+		return { tag: "INVALID_CONTROLLER_NODE_ID_239" };
+	}
+
+	// This is not the case, re-initialize the driver normally
+	if (!(await context.zwaveBinding.initialize())) {
 		return { tag: "CONNECTION_FAILED" };
 	}
 
@@ -227,7 +307,8 @@ export async function diagnoseCorruptedFirmware(context: WizardContext<RecoverAd
 export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 	id: "recover",
 	title: "Recover adapter",
-	description: "Attempt to recover an unresponsive ZWA-2 by identifying known issues and applying appropriate fixes.",
+	description:
+		"Attempt to recover an unresponsive ZWA-2 by identifying known issues and applying appropriate fixes.",
 	icon: LifebuoyIcon,
 	iconForeground: "text-orange-700 dark:text-orange-400",
 	iconBackground: "bg-orange-50 dark:bg-orange-500/10",
@@ -248,7 +329,8 @@ export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 			navigationButtons: {
 				next: {
 					label: "Next",
-					disabled: (context) => context.connectionState.status !== 'connected',
+					disabled: (context) =>
+						context.connectionState.status !== "connected",
 					beforeNavigate: async (context) => {
 						return await context.afterConnect();
 					},
@@ -262,13 +344,19 @@ export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 			name: "Diagnose",
 			component: DiagnoseStep,
 			onEnter: async (context) => {
-				if (!context.state.diagnosisResult && !context.state.isDiagnosing) {
-					context.setState(prev => ({ ...prev, isDiagnosing: true }));
+				if (
+					!context.state.diagnosisResult &&
+					!context.state.isDiagnosing
+				) {
+					context.setState((prev) => ({
+						...prev,
+						isDiagnosing: true,
+					}));
 					const result = await diagnoseCorruptedFirmware(context);
-					context.setState(prev => ({
+					context.setState((prev) => ({
 						...prev,
 						diagnosisResult: result,
-						isDiagnosing: false
+						isDiagnosing: false,
 					}));
 
 					// Automatically navigate based on diagnosis result
@@ -278,11 +366,15 @@ export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 						case "STARTED_APPLICATION":
 						case "END_DEVICE_CLI":
 							// Skip to summary automatically
-							context.setState(prev => ({ ...prev, finalResult: result }));
+							context.setState((prev) => ({
+								...prev,
+								finalResult: result,
+							}));
 							context.goToStep("Summary");
 							break;
 						case "CORRUPTED_FIRMWARE":
 						case "UNKNOWN_FIRMWARE":
+						case "INVALID_CONTROLLER_NODE_ID_239":
 							// Go to recovery step automatically
 							context.goToStep("Recovery");
 							break;

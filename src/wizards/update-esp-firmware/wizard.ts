@@ -120,7 +120,6 @@ export async function flashESPFirmwareWithData(
 		const loaderOptions: LoaderOptions = {
 			transport,
 			baudrate: 115200,
-			romBaudrate: 115200,
 			enableTracing: false,
 			debugLogging: false,
 		};
@@ -143,7 +142,7 @@ export async function flashESPFirmwareWithData(
 		// Flash firmware at the offset specified in the manifest
 		const flashOptions: FlashOptions = {
 			fileArray: [{
-				data: esploader.ui8ToBstr(firmwareData),
+				data: firmwareData,
 				address: firmwareOffset,
 			}],
 			flashSize: "keep",
