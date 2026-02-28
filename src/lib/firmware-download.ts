@@ -78,7 +78,7 @@ export async function downloadLatestFirmware(): Promise<FirmwareDownloadResult> 
 
 		// Download the firmware file through a CORS proxy
 		// GitHub doesn't provide CORS headers for release downloads, so we need a proxy
-		const proxyUrl = `https://corsproxy.io/?${encodeURIComponent(gblAsset.browser_download_url)}`;
+		const proxyUrl = `https://api.allorigins.win/raw?url=${encodeURIComponent(gblAsset.browser_download_url)}`;
 		const firmwareResponse = await fetch(proxyUrl);
 
 		if (!firmwareResponse.ok) {
