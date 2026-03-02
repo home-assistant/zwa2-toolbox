@@ -23,13 +23,18 @@ export default defineConfig({
 					__dirname,
 					"src/standalone/install-esphome-firmware.tsx",
 				),
+				"recover-adapter": resolve(
+					__dirname,
+					"src/standalone/recover-adapter.tsx",
+				),
 			},
 			output: {
 				entryFileNames: (chunkInfo) => {
 					// Keep the standalone web components as separate JS files
 					if (
 						chunkInfo.name === "install-esp-bridge-firmware" ||
-						chunkInfo.name === "install-esphome-firmware"
+						chunkInfo.name === "install-esphome-firmware" ||
+						chunkInfo.name === "recover-adapter"
 					) {
 						return "standalone/[name].js";
 					}
