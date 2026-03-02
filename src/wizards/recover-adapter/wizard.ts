@@ -242,8 +242,67 @@ export async function diagnoseCorruptedFirmware(
 		return { tag: "CONNECTION_FAILED" };
 	}
 
-	// First, without trying to identify the controller. This lets us detect whether the
-	// controller's own node ID is incorrectly set to the invalid ID 239
+	// First, without trying to identify the controller.
+	// This lets us run a few checks without relying on Z-Wave JS being able to fully boot the controller.
+	if (
+		!(await context.zwaveBinding.initialize({
+			skipControllerIdentification: true,
+		}))
+	) {
+		return { tag: "CONNECTION_FAILED" };
+	}
+
+	let wasInBootloaderMode = false;
+
+	try {
+		// Check current driver mode
+		const mode = context.zwaveBinding.getDriverMode();
+
+		switch (mode) {
+			case DriverMode.SerialAPI:
+				// This is expected but we need to run a few checks now.
+				break;
+
+			case DriverMode.CLI:
+				// Can't automatically recover from a custom CLI-based firmware
+				return { tag: "END_DEVICE_CLI" };
+
+			case DriverMode.Bootloader: {
+				// Try to run the application
+				const runSuccess = await context.zwaveBinding.runApplication();
+				if (runSuccess) {
+					const newMode = context.zwaveBinding.getDriverMode();
+					switch (newMode) {
+						case DriverMode.SerialAPI:
+							// We recovered from bootloader mode, but now we need to run the Serial API checks
+							wasInBootloaderMode = true;
+							break;
+						case DriverMode.CLI:
+							return { tag: "END_DEVICE_CLI" };
+						case DriverMode.Unknown:
+							return { tag: "UNKNOWN_FIRMWARE" };
+						default:
+							return { tag: "CORRUPTED_FIRMWARE" };
+					}
+				} else {
+					return { tag: "CORRUPTED_FIRMWARE" };
+				}
+				break;
+			}
+
+			case DriverMode.Unknown:
+				return { tag: "UNKNOWN_FIRMWARE" };
+
+			default:
+				return { tag: "CONNECTION_FAILED" };
+		}
+	} catch (error) {
+		console.error("Diagnosis failed:", error);
+		return { tag: "CONNECTION_FAILED" };
+	}
+
+	// We are now in Serial API mode, without having identified the controller.
+	// First check whether the controller's own node ID is incorrectly set to the invalid ID 239
 	let isInvalidControllerNodeId = false;
 	try {
 		isInvalidControllerNodeId =
@@ -261,46 +320,12 @@ export async function diagnoseCorruptedFirmware(
 		return { tag: "CONNECTION_FAILED" };
 	}
 
-	try {
-		// Check current driver mode
-		const mode = context.zwaveBinding.getDriverMode();
-
-		switch (mode) {
-			case DriverMode.SerialAPI:
-				return { tag: "NO_ISSUES" };
-
-			case DriverMode.CLI:
-				return { tag: "END_DEVICE_CLI" };
-
-			case DriverMode.Bootloader: {
-				// Try to run the application
-				const runSuccess = await context.zwaveBinding.runApplication();
-				if (runSuccess) {
-					const newMode = context.zwaveBinding.getDriverMode();
-					switch (newMode) {
-						case DriverMode.SerialAPI:
-							return { tag: "STARTED_APPLICATION" };
-						case DriverMode.CLI:
-							return { tag: "END_DEVICE_CLI" };
-						case DriverMode.Unknown:
-							return { tag: "UNKNOWN_FIRMWARE" };
-						default:
-							return { tag: "CORRUPTED_FIRMWARE" };
-					}
-				} else {
-					return { tag: "CORRUPTED_FIRMWARE" };
-				}
-			}
-
-			case DriverMode.Unknown:
-				return { tag: "UNKNOWN_FIRMWARE" };
-
-			default:
-				return { tag: "CONNECTION_FAILED" };
-		}
-	} catch (error) {
-		console.error("Diagnosis failed:", error);
-		return { tag: "CONNECTION_FAILED" };
+	// We did that successfully, so we now know the Serial API is working fine.
+	// Return the appropriate message
+	if (wasInBootloaderMode) {
+		return { tag: "STARTED_APPLICATION" };
+	} else {
+		return { tag: "NO_ISSUES" };
 	}
 }
 

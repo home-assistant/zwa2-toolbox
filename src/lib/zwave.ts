@@ -338,10 +338,13 @@ export class ZWaveBinding {
 		return this.driver?.mode === DriverMode.Bootloader;
 	}
 
+	/**
+	 * Attempts to detect if the controller's own node ID is incorrectly set to the invalid ID 239.
+	 * This expects the driver to have been initialized already (requires skipControllerIdentification: true)
+	 */
 	async detectInvalidControllerNodeID239(): Promise<boolean> {
-		await this.createDriver({ skipControllerIdentification: true });
 		if (!this.driver) {
-			throw new Error("Driver initialization failed");
+			throw new Error("Driver not initialized");
 		}
 
 		// @ts-expect-error This is an internal method
