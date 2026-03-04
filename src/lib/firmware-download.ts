@@ -46,9 +46,10 @@ interface FirmwareManifestEntry {
 }
 
 const SILABS_FIRMWARE_REPO = 'NabuCasa/silabs-firmware-builder';
+const RELEASES_BRANCH = 'releases';
 const RELEASES_API_URL = `https://api.github.com/repos/${SILABS_FIRMWARE_REPO}/releases?per_page=30`;
 const RELEASES_BRANCH_RAW_BASE_URL =
-	'https://raw.githubusercontent.com/NabuCasa/silabs-firmware-builder/refs/heads/releases';
+	`https://raw.githubusercontent.com/${SILABS_FIRMWARE_REPO}/refs/heads/${RELEASES_BRANCH}`;
 const ZWA2_FIRMWARE_PREFIX = 'zwa2_controller';
 
 /**
@@ -72,6 +73,8 @@ export async function downloadLatestFirmware(): Promise<FirmwareDownloadResult> 
 		if (stableReleases.length === 0) {
 			throw new FirmwareDownloadError('No stable releases found in firmware repository');
 		}
+
+		let lastReleaseError: unknown;
 
 		for (const release of stableReleases) {
 			try {
@@ -118,11 +121,16 @@ export async function downloadLatestFirmware(): Promise<FirmwareDownloadResult> 
 					data: firmwareData,
 				};
 			} catch (error) {
-				if (error instanceof FirmwareDownloadError) {
-					throw error;
-				}
+				lastReleaseError = error;
 				continue;
 			}
+		}
+
+		if (lastReleaseError) {
+			throw new FirmwareDownloadError(
+				`Unable to download ${ZWA2_FIRMWARE_PREFIX} firmware from available releases`,
+				lastReleaseError
+			);
 		}
 
 		throw new FirmwareDownloadError(
