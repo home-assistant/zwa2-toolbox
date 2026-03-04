@@ -50,7 +50,7 @@ const RELEASES_BRANCH = 'releases';
 const RELEASES_LATEST_API_URL = `https://api.github.com/repos/${SILABS_FIRMWARE_REPO}/releases/latest`;
 const RELEASES_API_URL = `https://api.github.com/repos/${SILABS_FIRMWARE_REPO}/releases?per_page=30`;
 const RELEASES_BRANCH_RAW_BASE_URL =
-	`https://raw.githubusercontent.com/${SILABS_FIRMWARE_REPO}/refs/heads/${RELEASES_BRANCH}`;
+	`https://raw.githubusercontent.com/${SILABS_FIRMWARE_REPO}/${RELEASES_BRANCH}`;
 const ZWA2_FIRMWARE_PREFIX = 'zwa2_controller';
 
 /**
