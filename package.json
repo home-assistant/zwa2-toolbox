@@ -42,6 +42,7 @@
 		"zwave-js": "^15.21.1"
 	},
 	"dependencies": {
+		"@noble/hashes": "^2.0.1",
 		"improv-wifi-serial-sdk": "^2.5.0"
 	}
 }
