@@ -47,6 +47,7 @@ interface FirmwareManifestEntry {
 
 const SILABS_FIRMWARE_REPO = 'NabuCasa/silabs-firmware-builder';
 const RELEASES_BRANCH = 'releases';
+const RELEASES_LATEST_API_URL = `https://api.github.com/repos/${SILABS_FIRMWARE_REPO}/releases/latest`;
 const RELEASES_API_URL = `https://api.github.com/repos/${SILABS_FIRMWARE_REPO}/releases?per_page=30`;
 const RELEASES_BRANCH_RAW_BASE_URL =
 	`https://raw.githubusercontent.com/${SILABS_FIRMWARE_REPO}/refs/heads/${RELEASES_BRANCH}`;
@@ -59,16 +60,31 @@ const ZWA2_FIRMWARE_PREFIX = 'zwa2_controller';
  */
 export async function downloadLatestFirmware(): Promise<FirmwareDownloadResult> {
 	try {
+		let latestRelease: GitHubRelease | undefined;
+		const latestReleaseResponse = await fetch(RELEASES_LATEST_API_URL);
+		if (latestReleaseResponse.ok) {
+			latestRelease = await latestReleaseResponse.json();
+		}
+
 		const releaseResponse = await fetch(RELEASES_API_URL);
 
-		if (!releaseResponse.ok) {
+		if (!releaseResponse.ok && !latestRelease) {
 			throw new FirmwareDownloadError(
 				`Failed to fetch release list: ${releaseResponse.status} ${releaseResponse.statusText}`
 			);
 		}
 
-		const releases: GitHubRelease[] = await releaseResponse.json();
+		const releases: GitHubRelease[] = releaseResponse.ok
+			? await releaseResponse.json()
+			: [];
 		const stableReleases = releases.filter(release => !release.draft && !release.prerelease);
+
+		if (
+			latestRelease &&
+			!stableReleases.some(release => release.tag_name === latestRelease.tag_name)
+		) {
+			stableReleases.unshift(latestRelease);
+		}
 
 		if (stableReleases.length === 0) {
 			throw new FirmwareDownloadError('No stable releases found in firmware repository');
@@ -82,7 +98,13 @@ export async function downloadLatestFirmware(): Promise<FirmwareDownloadResult> 
 
 				const manifestResponse = await fetch(manifestUrl);
 				if (!manifestResponse.ok) {
-					continue;
+					if (manifestResponse.status === 404) {
+						continue;
+					}
+
+					throw new FirmwareDownloadError(
+						`Failed to fetch manifest for release ${release.tag_name}: ${manifestResponse.status} ${manifestResponse.statusText}`
+					);
 				}
 
 				const manifest: FirmwareManifest = await manifestResponse.json();
