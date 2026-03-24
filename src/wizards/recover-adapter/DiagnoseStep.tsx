@@ -26,7 +26,7 @@ function DiagnosisResultDisplay({ result }: { result: DiagnosisResult }) {
           <Alert title="Unknown Firmware Detected" severity="warning">
             <p>
               Your ZWA-2 adapter is running an unknown firmware that is not recognized as a standard
-              Z-Wave controller firmware. This could be a Zniffer firmware or other custom firmware.
+              Z-Wave controller, repeater or Zniffer firmware.
             </p>
             <p className="mt-2">
               <strong>Recovery available:</strong> Proceeding to recovery options...

@@ -19,8 +19,8 @@ import { type BytesView } from "@zwave-js/shared";
 export type DiagnosisResult =
 	| { tag: "NO_ISSUES" }
 	| { tag: "END_DEVICE_CLI" }
+	| { tag: "ZNIFFER_FIRMWARE" }
 	| { tag: "CORRUPTED_FIRMWARE" }
-	| { tag: "STARTED_APPLICATION" }
 	| { tag: "UNKNOWN_FIRMWARE" }
 	| { tag: "CONNECTION_FAILED" }
 	| { tag: "INVALID_CONTROLLER_NODE_ID_239" }
@@ -242,67 +242,34 @@ export async function diagnoseCorruptedFirmware(
 		return { tag: "CONNECTION_FAILED" };
 	}
 
-	// First, without trying to identify the controller.
-	// This lets us run a few checks without relying on Z-Wave JS being able to fully boot the controller.
-	if (
-		!(await context.zwaveBinding.initialize({
-			skipControllerIdentification: true,
-		}))
-	) {
-		return { tag: "CONNECTION_FAILED" };
+	// Detect the firmware type first. This uses the Driver with
+	// skipControllerIdentification (so we can check for node ID 239 later),
+	// and falls back to Zniffer probing if the Driver can't communicate.
+	// Doing this as the first step avoids the Driver's internal recovery
+	// attempts (soft reset, serial port reopen) trashing the port state
+	// before we get a chance to try the Zniffer protocol.
+	const firmwareType = await context.zwaveBinding.detectFirmwareType({
+		skipControllerIdentification: true,
+	});
+
+	if (firmwareType === "zniffer") {
+		return { tag: "ZNIFFER_FIRMWARE" };
 	}
-
-	let wasInBootloaderMode = false;
-
-	try {
-		// Check current driver mode
-		const mode = context.zwaveBinding.getDriverMode();
-
-		switch (mode) {
-			case DriverMode.SerialAPI:
-				// This is expected but we need to run a few checks now.
-				break;
-
-			case DriverMode.CLI:
-				// Can't automatically recover from a custom CLI-based firmware
-				return { tag: "END_DEVICE_CLI" };
-
-			case DriverMode.Bootloader: {
-				// Try to run the application
-				const runSuccess = await context.zwaveBinding.runApplication();
-				if (runSuccess) {
-					const newMode = context.zwaveBinding.getDriverMode();
-					switch (newMode) {
-						case DriverMode.SerialAPI:
-							// We recovered from bootloader mode, but now we need to run the Serial API checks
-							wasInBootloaderMode = true;
-							break;
-						case DriverMode.CLI:
-							return { tag: "END_DEVICE_CLI" };
-						case DriverMode.Unknown:
-							return { tag: "UNKNOWN_FIRMWARE" };
-						default:
-							return { tag: "CORRUPTED_FIRMWARE" };
-					}
-				} else {
-					return { tag: "CORRUPTED_FIRMWARE" };
-				}
-				break;
-			}
-
-			case DriverMode.Unknown:
-				return { tag: "UNKNOWN_FIRMWARE" };
-
-			default:
-				return { tag: "CONNECTION_FAILED" };
+	if (firmwareType === "repeater") {
+		return { tag: "END_DEVICE_CLI" };
+	}
+	if (firmwareType === "unknown") {
+		return { tag: "UNKNOWN_FIRMWARE" };
+	}
+	if (firmwareType === null) {
+		if (context.zwaveBinding.isInBootloaderMode()) {
+			return { tag: "CORRUPTED_FIRMWARE" };
 		}
-	} catch (error) {
-		console.error("Diagnosis failed:", error);
 		return { tag: "CONNECTION_FAILED" };
 	}
 
-	// We are now in Serial API mode, without having identified the controller.
-	// First check whether the controller's own node ID is incorrectly set to the invalid ID 239
+	// Controller firmware detected. The driver is initialized with
+	// skipControllerIdentification — check for the node ID 239 issue.
 	let isInvalidControllerNodeId = false;
 	try {
 		isInvalidControllerNodeId =
@@ -315,18 +282,12 @@ export async function diagnoseCorruptedFirmware(
 		return { tag: "INVALID_CONTROLLER_NODE_ID_239" };
 	}
 
-	// This is not the case, re-initialize the driver normally
+	// Re-initialize the driver normally (with controller identification)
 	if (!(await context.zwaveBinding.initialize())) {
 		return { tag: "CONNECTION_FAILED" };
 	}
 
-	// We did that successfully, so we now know the Serial API is working fine.
-	// Return the appropriate message
-	if (wasInBootloaderMode) {
-		return { tag: "STARTED_APPLICATION" };
-	} else {
-		return { tag: "NO_ISSUES" };
-	}
+	return { tag: "NO_ISSUES" };
 }
 
 export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
@@ -388,8 +349,8 @@ export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 					switch (result.tag) {
 						case "NO_ISSUES":
 						case "CONNECTION_FAILED":
-						case "STARTED_APPLICATION":
 						case "END_DEVICE_CLI":
+						case "ZNIFFER_FIRMWARE":
 							// Skip to summary automatically
 							context.setState((prev) => ({
 								...prev,

@@ -1,8 +1,19 @@
 import type { WizardStepProps } from '../../components/Wizard';
 import type { InstallFirmwareState } from './wizard';
+import { firmwareTypeFromOption } from './wizard';
+
+const FIRMWARE_TYPE_LABELS = {
+  controller: "controller",
+  repeater: "repeater",
+  zniffer: "Zniffer",
+} as const;
 
 export default function SummaryStep({ context }: WizardStepProps<InstallFirmwareState>) {
-  const { flashResult, errorMessage } = context.state;
+  const { flashResult, errorMessage, selectedFirmware } = context.state;
+
+  const firmwareLabel = selectedFirmware
+    ? FIRMWARE_TYPE_LABELS[firmwareTypeFromOption(selectedFirmware)]
+    : "controller";
 
   const getResultContent = () => {
     switch (flashResult) {
@@ -17,9 +28,24 @@ export default function SummaryStep({ context }: WizardStepProps<InstallFirmware
           ),
           title: "Firmware installed successfully!",
           message: (
-            <p className="text-gray-600 dark:text-gray-300">
-              Your ZWA-2 has been updated with the latest controller firmware.
-            </p>
+            <div className="text-gray-600 dark:text-gray-300">
+              <p>
+                The latest {firmwareLabel} firmware has been installed.
+              </p>
+              {context.state.dsk && (
+                <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg text-left">
+                  <p className="font-medium text-yellow-800 dark:text-yellow-300 mb-2">
+                    Write down the DSK of your ZWA-2:
+                  </p>
+                  <p className="font-mono text-lg text-yellow-900 dark:text-yellow-100 select-all">
+                    {context.state.dsk}
+                  </p>
+                  <p className="mt-2 text-sm text-yellow-700 dark:text-yellow-400">
+                    You will need this key to include it in a Z-Wave network.
+                  </p>
+                </div>
+              )}
+            </div>
           )
         };
 
