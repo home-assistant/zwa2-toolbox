@@ -26,17 +26,6 @@ function getRecoveryResult(state: RecoverAdapterState): RecoveryResult {
         )
       };
 
-    case "STARTED_APPLICATION":
-      return {
-        tag: "STARTED_APPLICATION",
-        severity: "success",
-        message: (
-          <div>
-            <p>Your ZWA-2 adapter was in bootloader mode but has been successfully started. It is now ready to use as a Z-Wave controller.</p>
-          </div>
-        )
-      };
-
     case "RECOVERED":
       return {
         tag: "RECOVERED",
@@ -75,7 +64,21 @@ function getRecoveryResult(state: RecoverAdapterState): RecoveryResult {
         severity: "warning",
         message: (
           <div>
-            <p>Your ZWA-2 adapter is running an end device CLI firmware, which may cause it to appear unresponsive in Z-Wave controller applications.</p>
+            <p>Your ZWA-2 adapter is running a repeater firmware, which may cause it to appear unresponsive in Z-Wave controller applications.</p>
+            <p className="mt-2">
+              <strong>Recommendation:</strong> Use the "Install Z-Wave firmware" wizard to install the correct Z-Wave controller firmware.
+            </p>
+          </div>
+        )
+      };
+
+    case "ZNIFFER_FIRMWARE":
+      return {
+        tag: "ZNIFFER_FIRMWARE",
+        severity: "warning",
+        message: (
+          <div>
+            <p>Your ZWA-2 adapter is running Zniffer firmware, which may cause it to appear unresponsive in Z-Wave controller applications.</p>
             <p className="mt-2">
               <strong>Recommendation:</strong> Use the "Install Z-Wave firmware" wizard to install the correct Z-Wave controller firmware.
             </p>
@@ -158,7 +161,6 @@ function getResultTitle(result: RecoveryResult): string {
   switch (result.tag) {
     case "NO_ISSUES":
       return "Adapter is working properly";
-    case "STARTED_APPLICATION":
     case "RECOVERED":
       return "Adapter successfully recovered";
     case "FIXED_CONTROLLER_NODE_ID_239":
@@ -166,7 +168,8 @@ function getResultTitle(result: RecoveryResult): string {
     case "FIXING_CONTROLLER_NODE_ID_239_FAILED":
       return "Failed to correct controller node ID";
     case "END_DEVICE_CLI":
-      return "Wrong firmware detected";
+    case "ZNIFFER_FIRMWARE":
+      return "Alternative firmware detected";
     case "CONNECTION_FAILED":
       return "Connection failed";
     case "RECOVERY_FAILED":

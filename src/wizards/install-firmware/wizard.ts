@@ -95,7 +95,7 @@ async function handleFileSelectStepEntry(
 		const detected = await context.zwaveBinding.detectFirmwareType();
 		context.setState((prev) => ({
 			...prev,
-			detectedFirmwareType: detected,
+			detectedFirmwareType: detected === "unknown" ? null : detected,
 			detectionState: "done",
 		}));
 	} catch {

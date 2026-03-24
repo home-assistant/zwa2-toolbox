@@ -347,20 +347,21 @@ export class ZWaveBinding {
 	 * running Zniffer firmware. Always recreates the serial binding afterwards.
 	 */
 	private async tryInitZniffer(): Promise<boolean> {
+		const zniffer = new Zniffer(this.serialBinding, {
+			host: {
+				fs,
+				db,
+				log: createLogContainer,
+				serial: {},
+			},
+		});
 		try {
-			const zniffer = new Zniffer(this.serialBinding, {
-				host: {
-					fs,
-					db,
-					log: createLogContainer,
-					serial: {},
-				},
-			});
 			await zniffer.init();
 			await zniffer.destroy();
 			this.serialBinding = createWebSerialPortFactory(this.port);
 			return true;
 		} catch {
+			await zniffer.destroy().catch(() => {});
 			this.serialBinding = createWebSerialPortFactory(this.port);
 			return false;
 		}
@@ -382,16 +383,29 @@ export class ZWaveBinding {
 
 	/**
 	 * Detects the current firmware type by trying the Driver first, then falling back to the Zniffer class.
-	 * Returns null if the firmware type cannot be determined (e.g., stuck in bootloader).
+	 *
+	 * Returns:
+	 * - A `FirmwareType` when the firmware was positively identified
+	 * - `"unknown"` when the device is responsive (app could be started) but the firmware is not recognized
+	 * - `null` when the device could not be reached at all or is stuck in bootloader
 	 */
-	async detectFirmwareType(): Promise<FirmwareType | null> {
+	async detectFirmwareType(
+		options?: ZWaveBindingInitOptions,
+	): Promise<FirmwareType | "unknown" | null> {
 		// Suppress error callbacks during probing — failures are expected
 		// when the device runs firmware the Driver doesn't understand.
 		const savedOnError = this.onError;
 		this.onError = undefined;
 
 		try {
-			const driverSuccess = await this.initialize();
+			// Try Zniffer first — it's a quick check and avoids the Driver's
+			// internal recovery attempts (soft reset, serial port reopen)
+			// trashing the port state when the device runs Zniffer firmware.
+			const isZniffer = await this.tryInitZniffer();
+			if (isZniffer) return "zniffer";
+
+			let couldStartApp = false;
+			const driverSuccess = await this.initialize(options);
 
 			if (driverSuccess) {
 				const mode = this.getDriverMode();
@@ -404,10 +418,11 @@ export class ZWaveBinding {
 						// Try running the application to detect the firmware type
 						const started = await this.runApplication();
 						if (started) {
+							couldStartApp = true;
 							const newMode = this.getDriverMode();
 							if (newMode === DriverMode.SerialAPI) return "controller";
 							if (newMode === DriverMode.CLI) return "repeater";
-							// Unknown mode after running application — fall through to Zniffer check
+							// Unknown mode after running application — fall through
 						} else {
 							// Still in bootloader, can't determine firmware type
 							return null;
@@ -417,10 +432,9 @@ export class ZWaveBinding {
 				}
 			}
 
-			// Driver failed or mode is Unknown — try detecting Zniffer firmware
-			await this.cleanupDriver();
-			const isZniffer = await this.tryInitZniffer();
-			return isZniffer ? "zniffer" : null;
+			// Driver failed or mode is Unknown — not Zniffer (already checked),
+			// so it's either truly unknown or a connection failure.
+			return couldStartApp ? "unknown" : null;
 		} finally {
 			this.onError = savedOnError;
 		}
