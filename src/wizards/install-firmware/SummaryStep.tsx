@@ -1,8 +1,19 @@
 import type { WizardStepProps } from '../../components/Wizard';
 import type { InstallFirmwareState } from './wizard';
+import { firmwareTypeFromOption } from './wizard';
+
+const FIRMWARE_TYPE_LABELS = {
+  controller: "controller",
+  repeater: "repeater",
+  zniffer: "Zniffer",
+} as const;
 
 export default function SummaryStep({ context }: WizardStepProps<InstallFirmwareState>) {
-  const { flashResult, errorMessage } = context.state;
+  const { flashResult, errorMessage, selectedFirmware } = context.state;
+
+  const firmwareLabel = selectedFirmware
+    ? FIRMWARE_TYPE_LABELS[firmwareTypeFromOption(selectedFirmware)]
+    : "controller";
 
   const getResultContent = () => {
     switch (flashResult) {
@@ -18,7 +29,7 @@ export default function SummaryStep({ context }: WizardStepProps<InstallFirmware
           title: "Firmware installed successfully!",
           message: (
             <p className="text-gray-600 dark:text-gray-300">
-              Your ZWA-2 has been updated with the latest controller firmware.
+              The latest {firmwareLabel} firmware has been installed.
             </p>
           )
         };

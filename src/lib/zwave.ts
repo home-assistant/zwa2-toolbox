@@ -16,6 +16,7 @@ import {
 	Driver,
 	DriverMode,
 	OTWFirmwareUpdateStatus,
+	Zniffer,
 	extractFirmware,
 	getEnumMemberName,
 	guessFirmwareFileFormat,
@@ -24,6 +25,7 @@ import {
 } from "zwave-js";
 import { resetZWaveChipViaCommandMode } from "./esp-utils";
 import { NodeIDType, NodeType } from "@zwave-js/core/definitions";
+import type { FirmwareType } from "./firmware-download";
 
 export interface ZWaveBindingInitOptions {
 	/** Skip controller identification during driver startup. Useful for recovery when the chip firmware may be partially functional. */
@@ -277,11 +279,13 @@ export class ZWaveBinding {
 		}
 
 		try {
-			// Force into bootloader mode
-			const bootloaderSuccess = await this.resetToBootloader();
-			if (!bootloaderSuccess) {
-				this.onError?.("Failed to reset to bootloader");
-				return false;
+			// Enter bootloader mode if not already there
+			if (this.driver.mode !== DriverMode.Bootloader) {
+				const bootloaderSuccess = await this.resetToBootloader();
+				if (!bootloaderSuccess) {
+					this.onError?.("Failed to reset to bootloader");
+					return false;
+				}
 			}
 
 			const option = this.driver.bootloader.findOption(
@@ -336,6 +340,99 @@ export class ZWaveBinding {
 
 	isInBootloaderMode(): boolean {
 		return this.driver?.mode === DriverMode.Bootloader;
+	}
+
+	/**
+	 * Attempts to initialize a Zniffer instance to check if the device is
+	 * running Zniffer firmware. Always recreates the serial binding afterwards.
+	 */
+	private async tryInitZniffer(): Promise<boolean> {
+		try {
+			const zniffer = new Zniffer(this.serialBinding, {
+				host: {
+					fs,
+					db,
+					log: createLogContainer,
+					serial: {},
+				},
+			});
+			await zniffer.init();
+			await zniffer.destroy();
+			this.serialBinding = createWebSerialPortFactory(this.port);
+			return true;
+		} catch {
+			this.serialBinding = createWebSerialPortFactory(this.port);
+			return false;
+		}
+	}
+
+	/**
+	 * Destroys the current Driver (if any) and gives the serial port time to
+	 * settle before further operations.
+	 */
+	private async cleanupDriver(): Promise<void> {
+		if (this.driver) {
+			this.driver.removeAllListeners();
+			await this.driver.destroy().catch(() => {});
+			this.driver = undefined;
+		}
+		await wait(500);
+		this.serialBinding = createWebSerialPortFactory(this.port);
+	}
+
+	/**
+	 * Detects the current firmware type by trying the Driver first, then falling back to the Zniffer class.
+	 * Returns null if the firmware type cannot be determined (e.g., stuck in bootloader).
+	 */
+	async detectFirmwareType(): Promise<FirmwareType | null> {
+		// Suppress error callbacks during probing — failures are expected
+		// when the device runs firmware the Driver doesn't understand.
+		const savedOnError = this.onError;
+		this.onError = undefined;
+
+		try {
+			const driverSuccess = await this.initialize();
+
+			if (driverSuccess) {
+				const mode = this.getDriverMode();
+				switch (mode) {
+					case DriverMode.SerialAPI:
+						return "controller";
+					case DriverMode.CLI:
+						return "repeater";
+					case DriverMode.Bootloader: {
+						// Try running the application to detect the firmware type
+						const started = await this.runApplication();
+						if (started) {
+							const newMode = this.getDriverMode();
+							if (newMode === DriverMode.SerialAPI) return "controller";
+							if (newMode === DriverMode.CLI) return "repeater";
+							// Unknown mode after running application — fall through to Zniffer check
+						} else {
+							// Still in bootloader, can't determine firmware type
+							return null;
+						}
+						break;
+					}
+				}
+			}
+
+			// Driver failed or mode is Unknown — try detecting Zniffer firmware
+			await this.cleanupDriver();
+			const isZniffer = await this.tryInitZniffer();
+			return isZniffer ? "zniffer" : null;
+		} finally {
+			this.onError = savedOnError;
+		}
+	}
+
+	/**
+	 * Verifies that the device is running Zniffer firmware by attempting to
+	 * initialize a Zniffer instance. Cleans up the Driver first if needed.
+	 */
+	async verifyZnifferFirmware(): Promise<boolean> {
+		await this.cleanupDriver();
+		return this.tryInitZniffer();
 	}
 
 	/**

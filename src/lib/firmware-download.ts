@@ -51,14 +51,24 @@ const RELEASES_LATEST_API_URL = `https://api.github.com/repos/${SILABS_FIRMWARE_
 const RELEASES_API_URL = `https://api.github.com/repos/${SILABS_FIRMWARE_REPO}/releases?per_page=30`;
 const RELEASES_BRANCH_RAW_BASE_URL =
 	`https://raw.githubusercontent.com/${SILABS_FIRMWARE_REPO}/${RELEASES_BRANCH}`;
-const ZWA2_FIRMWARE_PREFIX = 'zwa2_controller';
+export type FirmwareType = "controller" | "repeater" | "zniffer";
+
+const ZWA2_FIRMWARE_PREFIXES: Record<FirmwareType, string> = {
+	controller: 'zwa2_controller',
+	repeater: 'zwa2_repeater',
+	zniffer: 'zwa2_zniffer',
+};
 
 /**
  * Downloads the latest Z-Wave firmware from silabs-firmware-builder release manifests
  * @returns Promise resolving to firmware file name and data
  * @throws FirmwareDownloadError if download or verification fails
  */
-export async function downloadLatestFirmware(): Promise<FirmwareDownloadResult> {
+export async function downloadLatestFirmware(
+	firmwareType: FirmwareType = "controller",
+): Promise<FirmwareDownloadResult> {
+	const prefix = ZWA2_FIRMWARE_PREFIXES[firmwareType];
+
 	try {
 		let latestRelease: GitHubRelease | undefined;
 		const latestReleaseResponse = await fetch(RELEASES_LATEST_API_URL);
@@ -110,7 +120,7 @@ export async function downloadLatestFirmware(): Promise<FirmwareDownloadResult> 
 				const manifest: FirmwareManifest = await manifestResponse.json();
 				const firmwareEntry = manifest.firmwares.find(
 					firmware =>
-						firmware.filename.startsWith(ZWA2_FIRMWARE_PREFIX) &&
+						firmware.filename.startsWith(prefix) &&
 						firmware.filename.toLowerCase().endsWith('.gbl')
 				);
 
@@ -150,13 +160,13 @@ export async function downloadLatestFirmware(): Promise<FirmwareDownloadResult> 
 
 		if (lastReleaseError) {
 			throw new FirmwareDownloadError(
-				`Unable to download ${ZWA2_FIRMWARE_PREFIX} firmware from available releases`,
+				`Unable to download ${prefix} firmware from available releases`,
 				lastReleaseError
 			);
 		}
 
 		throw new FirmwareDownloadError(
-			`No ${ZWA2_FIRMWARE_PREFIX} firmware found in available release manifests`
+			`No ${prefix} firmware found in available release manifests`
 		);
 
 	} catch (error) {
