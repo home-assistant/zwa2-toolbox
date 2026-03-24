@@ -28,9 +28,24 @@ export default function SummaryStep({ context }: WizardStepProps<InstallFirmware
           ),
           title: "Firmware installed successfully!",
           message: (
-            <p className="text-gray-600 dark:text-gray-300">
-              The latest {firmwareLabel} firmware has been installed.
-            </p>
+            <div className="text-gray-600 dark:text-gray-300">
+              <p>
+                The latest {firmwareLabel} firmware has been installed.
+              </p>
+              {context.state.dsk && (
+                <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg text-left">
+                  <p className="font-medium text-yellow-800 dark:text-yellow-300 mb-2">
+                    Write down the DSK of your ZWA-2:
+                  </p>
+                  <p className="font-mono text-lg text-yellow-900 dark:text-yellow-100 select-all">
+                    {context.state.dsk}
+                  </p>
+                  <p className="mt-2 text-sm text-yellow-700 dark:text-yellow-400">
+                    You will need this key to include it in a Z-Wave network.
+                  </p>
+                </div>
+              )}
+            </div>
           )
         };
 

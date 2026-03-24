@@ -528,6 +528,19 @@ export class ZWaveBinding {
 		await this.driver!.softReset();
 	}
 
+	async getDSK(): Promise<string | null> {
+		if (!this.driver || this.driver.mode !== DriverMode.CLI) {
+			return null;
+		}
+
+		try {
+			const dsk = await this.driver.cli.executeCommand("get_dsk");
+			return dsk ?? null;
+		} catch {
+			return null;
+		}
+	}
+
 	async disconnect(): Promise<void> {
 		if (this.driver) {
 			this.driver.removeAllListeners();

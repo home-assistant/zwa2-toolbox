@@ -34,6 +34,7 @@ export interface InstallFirmwareState {
 	detectedFirmwareType: FirmwareType | null;
 	detectionState: "pending" | "detecting" | "done";
 	dataLossConfirmed: boolean;
+	dsk: string | null;
 }
 
 export type InstallFirmwareWizardStepProps =
@@ -274,12 +275,16 @@ async function handleInstallStepEntry(
 				mode = context.zwaveBinding.getDriverMode();
 			}
 			if (mode === getExpectedDriverMode(targetType)) {
+				const dsk = targetType === "repeater"
+					? await context.zwaveBinding.getDSK()
+					: null;
 				context.setState((prev) => ({
 					...prev,
 					isFlashing: false,
 					progress: 100,
 					flashResult: "success",
 					errorMessage: "",
+					dsk,
 				}));
 			} else {
 				context.setState((prev) => ({
@@ -325,6 +330,7 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 		detectedFirmwareType: null,
 		detectionState: "pending",
 		dataLossConfirmed: false,
+		dsk: null,
 	}),
 	steps: [
 		{
