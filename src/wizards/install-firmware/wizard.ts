@@ -1,5 +1,6 @@
 import { CloudArrowDownIcon } from "@heroicons/react/24/outline";
 import ConnectStep from "../../components/steps/ConnectStep";
+import ConfigureStep from "./ConfigureStep";
 import FileSelectStep from "./FileSelectStep";
 import FlashStep from "./FlashStep";
 import SummaryStep from "./SummaryStep.tsx";
@@ -35,6 +36,9 @@ export interface InstallFirmwareState {
 	detectionState: "pending" | "detecting" | "done";
 	dataLossConfirmed: boolean;
 	dsk: string | null;
+	selectedRegion: string | null;
+	configureStatus: "idle" | "configuring" | "success" | "error" | "skipped";
+	configureError: string | null;
 }
 
 export type InstallFirmwareWizardStepProps =
@@ -101,6 +105,89 @@ async function handleFileSelectStepEntry(
 		}));
 	} catch {
 		context.setState((prev) => ({ ...prev, detectionState: "done" }));
+	}
+}
+
+async function handleConfigureStepEntry(
+	context: WizardContext<InstallFirmwareState>,
+): Promise<void> {
+	const { flashResult, selectedFirmware, configureStatus } = context.state;
+
+	// Don't re-run if already in progress or done
+	if (configureStatus === "success" || configureStatus === "configuring") {
+		return;
+	}
+
+	// Skip if flash failed or not repeater firmware
+	if (
+		flashResult !== "success" ||
+		!selectedFirmware ||
+		firmwareTypeFromOption(selectedFirmware) !== "repeater"
+	) {
+		context.setState((prev) => ({ ...prev, configureStatus: "skipped" }));
+		context.goToStep("Summary");
+		return;
+	}
+}
+
+async function handleConfigureBeforeNavigate(
+	context: WizardContext<InstallFirmwareState>,
+): Promise<boolean> {
+	const { selectedRegion, configureStatus } = context.state;
+
+	if (configureStatus === "success") {
+		return true;
+	}
+
+	if (!selectedRegion || !context.zwaveBinding) {
+		return false;
+	}
+
+	// Show spinner
+	context.setState((prev) => ({
+		...prev,
+		configureStatus: "configuring",
+		configureError: null,
+	}));
+
+	try {
+		const setSuccess = await context.zwaveBinding.setRegion(selectedRegion);
+		if (!setSuccess) {
+			context.setState((prev) => ({
+				...prev,
+				configureStatus: "error",
+				configureError: "Failed to set RF region. Please try again.",
+			}));
+			return false;
+		}
+
+		// Wait for ZWA-2 to reboot
+		const { wait } = await import("alcalzone-shared/async");
+		await wait(1000);
+
+		// Verify region
+		const confirmedRegion = await context.zwaveBinding.getRegion();
+		if (confirmedRegion !== selectedRegion) {
+			context.setState((prev) => ({
+				...prev,
+				configureStatus: "error",
+				configureError: `Region verification failed. Expected "${selectedRegion}" but got "${confirmedRegion ?? "unknown"}".`,
+			}));
+			return false;
+		}
+
+		context.setState((prev) => ({
+			...prev,
+			configureStatus: "success",
+		}));
+		return true;
+	} catch (error) {
+		context.setState((prev) => ({
+			...prev,
+			configureStatus: "error",
+			configureError: `Unexpected error: ${error}`,
+		}));
+		return false;
 	}
 }
 
@@ -297,8 +384,8 @@ async function handleInstallStepEntry(
 			}
 		}
 
-		// Always navigate to summary after flash attempt
-		context.goToStep("Summary");
+		// Navigate to Configure (auto-skips to Summary for non-repeater)
+		context.goToStep("Configure");
 	} catch (error) {
 		context.setState((prev) => ({
 			...prev,
@@ -331,6 +418,9 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 		detectionState: "pending",
 		dataLossConfirmed: false,
 		dsk: null,
+		selectedRegion: null,
+		configureStatus: "idle",
+		configureError: null,
 	}),
 	steps: [
 		{
@@ -388,6 +478,20 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 			component: FlashStep,
 			onEnter: handleInstallStepEntry,
 			blockBrowserNavigation: (context) => context.state.isFlashing,
+		},
+		{
+			name: "Configure",
+			component: ConfigureStep,
+			onEnter: handleConfigureStepEntry,
+			navigationButtons: {
+				next: {
+					label: "Next",
+					beforeNavigate: handleConfigureBeforeNavigate,
+					disabled: (context) =>
+						!context.state.selectedRegion ||
+						context.state.configureStatus === "configuring",
+				},
+			},
 		},
 		{
 			name: "Summary",

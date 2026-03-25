@@ -541,6 +541,32 @@ export class ZWaveBinding {
 		}
 	}
 
+	async setRegion(region: string): Promise<boolean> {
+		if (!this.driver || this.driver.mode !== DriverMode.CLI) {
+			return false;
+		}
+
+		try {
+			await this.driver.cli.executeCommand(`set_region ${region}`);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	async getRegion(): Promise<string | null> {
+		if (!this.driver || this.driver.mode !== DriverMode.CLI) {
+			return null;
+		}
+
+		try {
+			const region = await this.driver.cli.executeCommand("get_region");
+			return region ?? null;
+		} catch {
+			return null;
+		}
+	}
+
 	async disconnect(): Promise<void> {
 		if (this.driver) {
 			this.driver.removeAllListeners();

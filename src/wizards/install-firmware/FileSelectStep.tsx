@@ -15,12 +15,13 @@ const firmwareOptions: Array<{ value: FirmwareOption; label: string; description
     label: "Controller firmware (latest)",
     description: "Download and install the latest official controller firmware from GitHub",
   },
-  {
-    value: { type: "latest-repeater" },
-    label: "Repeater firmware (latest)",
-    description: "Turn your ZWA-2 into a repeater",
-    experimental: true,
-  },
+  // Disabled until I can figure out the region switching
+//   {
+//     value: { type: "latest-repeater" },
+//     label: "Repeater firmware (latest)",
+//     description: "Turn your ZWA-2 into a repeater",
+//     experimental: true,
+//   },
   {
     value: { type: "latest-zniffer" },
     label: "Zniffer firmware (latest)",
