@@ -133,6 +133,19 @@ export class ZWaveBinding {
 		return false;
 	}
 
+	/** Reboots the device by entering bootloader and starting the application again. */
+	async rebootDevice(): Promise<boolean> {
+		if (!this.driver) return false;
+
+		try {
+			await this.driver.enterBootloader();
+		} catch {
+			return false;
+		}
+
+		return this.runApplication();
+	}
+
 	async runApplication(): Promise<boolean> {
 		if (!this.driver || this.driver.mode !== DriverMode.Bootloader) {
 			this.onError?.("Not in bootloader mode");
@@ -548,6 +561,55 @@ export class ZWaveBinding {
 
 		try {
 			await this.driver.cli.executeCommand(`set_region ${region}`);
+			return true;
+		} catch {
+			return false;
+		}
+	}
+
+	async getPowerlevel(): Promise<{
+		txPowerMax: number;
+		txPowerAdjust: number;
+		txPowerMaxLR: number;
+	} | null> {
+		if (!this.driver || this.driver.mode !== DriverMode.CLI) {
+			return null;
+		}
+
+		try {
+			const response =
+				await this.driver.cli.executeCommand("get_powerlevel");
+			if (!response) return null;
+
+			// Response format: iTxPowerLevelMax=%d iTxPowerLevelAdjust=%d iTxPowerLevelMaxLR=%d
+			const match = response.match(
+				/iTxPowerLevelMax=(-?\d+)\s+iTxPowerLevelAdjust=(-?\d+)\s+iTxPowerLevelMaxLR=(-?\d+)/,
+			);
+			if (!match) return null;
+
+			return {
+				txPowerMax: Number(match[1]),
+				txPowerAdjust: Number(match[2]),
+				txPowerMaxLR: Number(match[3]),
+			};
+		} catch {
+			return null;
+		}
+	}
+
+	async setPowerlevel(
+		txPowerMax: number,
+		txPowerAdjust: number,
+		txPowerMaxLR: number,
+	): Promise<boolean> {
+		if (!this.driver || this.driver.mode !== DriverMode.CLI) {
+			return false;
+		}
+
+		try {
+			await this.driver.cli.executeCommand(
+				`set_powerlevel ${txPowerMax} ${txPowerAdjust} ${txPowerMaxLR}`,
+			);
 			return true;
 		} catch {
 			return false;
