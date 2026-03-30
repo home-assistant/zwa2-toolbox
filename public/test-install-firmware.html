@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+	<head>
+		<meta charset="UTF-8" />
+		<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+		<title>Install Z-Wave Firmware</title>
+	</head>
+	<body>
+		<h1>Default (no preselection)</h1>
+		<p>The user can choose which firmware to install:</p>
+		<install-firmware></install-firmware>
+
+		<hr style="margin: 3rem 0" />
+
+		<h1>Preselected: Controller firmware</h1>
+		<p>Firmware selection is hidden; jumps straight to install:</p>
+		<install-firmware firmware="controller"></install-firmware>
+
+		<hr style="margin: 3rem 0" />
+
+		<h1>Preselected: Repeater firmware</h1>
+		<install-firmware firmware="repeater"></install-firmware>
+
+		<hr style="margin: 3rem 0" />
+
+		<h1>Preselected: Zniffer firmware</h1>
+		<install-firmware firmware="zniffer"></install-firmware>
+
+		<!-- Load the web component script -->
+		<script
+			type="module"
+			src="./standalone/install-firmware.js"
+		></script>
+	</body>
+</html>

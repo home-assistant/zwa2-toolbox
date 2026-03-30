@@ -25,7 +25,7 @@ const firmwareOptions: Array<{ value: FirmwareOption; label: string; description
 ];
 
 export default function FileSelectStep({ context }: WizardStepProps<InstallFirmwareState>) {
-  const { selectedFirmware, detectedFirmwareType, detectionState, dataLossConfirmed } = context.state;
+  const { selectedFirmware, detectedFirmwareType, detectionState, dataLossConfirmed, firmwarePreselected } = context.state;
 
   const handleOptionChange = (option: FirmwareOption) => {
     context.setState(prev => ({
@@ -46,7 +46,9 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
   return (
     <div className="py-8">
       <h3 className="text-lg font-medium text-primary mb-4">
-        Choose which firmware package to install
+        {firmwarePreselected
+          ? "Confirm firmware installation"
+          : "Choose which firmware package to install"}
       </h3>
 
       {detectionState === "detecting" ? (
@@ -68,42 +70,44 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
         </p>
       )}
 
-      <div className="space-y-4">
-        {firmwareOptions.map((option, index) => (
-          <div
-            key={index}
-            className={`relative flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
-              isSelected(option.value)
-                ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400'
-                : 'border-app-border hover:border-app-border-hover'
-            }`}
-            onClick={() => handleOptionChange(option.value)}
-          >
-            <div className="flex items-center h-5">
-              <input
-                type="radio"
-                name="firmwareOption"
-                checked={isSelected(option.value)}
-                onChange={() => handleOptionChange(option.value)}
-                className="h-4 w-4 text-blue-600 border-app-border focus:ring-blue-500 dark:bg-gray-700"
-              />
+      {!firmwarePreselected && (
+        <div className="space-y-4">
+          {firmwareOptions.map((option, index) => (
+            <div
+              key={index}
+              className={`relative flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
+                isSelected(option.value)
+                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400'
+                  : 'border-app-border hover:border-app-border-hover'
+              }`}
+              onClick={() => handleOptionChange(option.value)}
+            >
+              <div className="flex items-center h-5">
+                <input
+                  type="radio"
+                  name="firmwareOption"
+                  checked={isSelected(option.value)}
+                  onChange={() => handleOptionChange(option.value)}
+                  className="h-4 w-4 text-blue-600 border-app-border focus:ring-blue-500 dark:bg-gray-700"
+                />
+              </div>
+              <div className="ml-3 text-sm">
+                <label className="font-medium text-primary cursor-pointer">
+                  {option.label}
+                  {option.experimental && (
+                    <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:text-yellow-300">
+                      Experimental
+                    </span>
+                  )}
+                </label>
+                <p className="text-secondary">
+                  {option.description}
+                </p>
+              </div>
             </div>
-            <div className="ml-3 text-sm">
-              <label className="font-medium text-primary cursor-pointer">
-                {option.label}
-                {option.experimental && (
-                  <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:text-yellow-300">
-                    Experimental
-                  </span>
-                )}
-              </label>
-              <p className="text-secondary">
-                {option.description}
-              </p>
-            </div>
-          </div>
-        ))}
-      </div>
+          ))}
+        </div>
+      )}
 
       {showWarning && (
         <div className="mt-6">
