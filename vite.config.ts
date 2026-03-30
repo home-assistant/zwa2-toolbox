@@ -33,7 +33,7 @@ export default defineConfig({
 				),
 				"configure-zwa2": resolve(
 					__dirname,
-					"src/standalone/configure.tsx",
+					"src/standalone/configure-zwa2.tsx",
 				),
 			},
 			output: {
