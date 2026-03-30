@@ -13,17 +13,32 @@ import {
 	getLegalPowerlevelMesh,
 	getLegalPowerlevelLR,
 } from "@zwave-js/core/definitions";
+import { NabuCasaConfigKey } from "zwave-js/Controller";
+import { getEnumMemberName } from "zwave-js";
+
+export interface RegionOption {
+	value: RFRegion;
+	label: string;
+	disabled: boolean;
+}
 
 export type ConfigureState = {
 	// Detection phase
 	detectionState: "pending" | "detecting" | "done";
 	detectedFirmwareType: FirmwareType | null;
-	// Repeater configuration
-	currentRegion: string | null;
-	selectedRegion: string | null;
+	// Region configuration (shared between repeater and controller)
+	currentRegion: string | RFRegion | null;
+	selectedRegion: string | RFRegion | null;
 	configureStatus: "idle" | "configuring" | "success" | "error";
 	configureError: string | null;
+	// Repeater-specific
 	dsk: string | null;
+	// Controller-specific
+	supportedRegions: RegionOption[];
+	ledEnabled: boolean | null;
+	tiltIndicatorEnabled: boolean | null;
+	togglingLed: boolean;
+	togglingTilt: boolean;
 };
 
 export type ConfigureWizardStepProps = WizardStepProps<ConfigureState>;
@@ -59,14 +74,54 @@ async function handleDetectStepEntry(
 		const firmwareType = detected === "unknown" ? null : detected;
 
 		let dsk: string | null = null;
-		let currentRegion: string | null = null;
+		let currentRegion: string | RFRegion | null = null;
+		let supportedRegions: RegionOption[] = [];
+		let ledEnabled: boolean | null = null;
+		let tiltIndicatorEnabled: boolean | null = null;
 
-		// For repeater firmware, read the current region and DSK.
-		// These must be sequential — both use CLI commands over the
-		// same serial connection and would mix up responses in parallel.
 		if (firmwareType === "repeater") {
+			// These must be sequential — both use CLI commands over the
+			// same serial connection and would mix up responses in parallel.
 			dsk = await context.zwaveBinding.getDSK();
 			currentRegion = await context.zwaveBinding.getRegion();
+		} else if (firmwareType === "controller") {
+			const ctrl = context.zwaveBinding.controller;
+			if (ctrl) {
+				// Read supported regions
+				const regions = ctrl.getSupportedRFRegions();
+				if (regions) {
+					supportedRegions = regions
+						.map((region) => ({
+							value: region,
+							label: getEnumMemberName(RFRegion, region),
+							disabled:
+								region === RFRegion.Unknown ||
+								region === RFRegion["Default (EU)"],
+						}))
+						.sort((a, b) => a.label.localeCompare(b.label));
+				}
+
+				// Read current region
+				currentRegion = await ctrl.getRFRegion();
+
+				// Read LED state and tilt indicator
+				const nabuCasa = ctrl.proprietary["Nabu Casa"];
+				if (nabuCasa) {
+					try {
+						ledEnabled = await nabuCasa.getLEDBinary();
+					} catch {
+						// LED control not supported
+					}
+					try {
+						const val = await nabuCasa.getConfig(
+							NabuCasaConfigKey.EnableTiltIndicator,
+						);
+						tiltIndicatorEnabled = val === 1;
+					} catch {
+						// Tilt indicator not supported
+					}
+				}
+			}
 		}
 
 		context.setState((prev) => ({
@@ -76,6 +131,9 @@ async function handleDetectStepEntry(
 			dsk,
 			currentRegion,
 			selectedRegion: currentRegion,
+			supportedRegions,
+			ledEnabled,
+			tiltIndicatorEnabled,
 		}));
 	} catch {
 		context.setState((prev) => ({ ...prev, detectionState: "done" }));
@@ -84,12 +142,12 @@ async function handleDetectStepEntry(
 	context.goToStep("Configure");
 }
 
-export async function applyRegionConfiguration(
+export async function applyRepeaterRegionConfiguration(
 	context: WizardContext<ConfigureState>,
 ): Promise<boolean> {
 	const { selectedRegion } = context.state;
 
-	if (!selectedRegion || !context.zwaveBinding) {
+	if (!selectedRegion || typeof selectedRegion !== "string" || !context.zwaveBinding) {
 		return false;
 	}
 
@@ -166,14 +224,100 @@ export async function applyRegionConfiguration(
 	}
 }
 
+export async function applyControllerRegionConfiguration(
+	context: WizardContext<ConfigureState>,
+): Promise<boolean> {
+	const { selectedRegion } = context.state;
+	const ctrl = context.zwaveBinding?.controller;
+
+	if (selectedRegion == null || typeof selectedRegion !== "number" || !ctrl) {
+		return false;
+	}
+
+	context.setState((prev) => ({
+		...prev,
+		configureStatus: "configuring",
+		configureError: null,
+	}));
+
+	try {
+		const success = await ctrl.setRFRegion(selectedRegion);
+		if (!success) {
+			context.setState((prev) => ({
+				...prev,
+				configureStatus: "error",
+				configureError: "Failed to set RF region. Please try again.",
+			}));
+			return false;
+		}
+
+		context.setState((prev) => ({
+			...prev,
+			configureStatus: "success",
+			currentRegion: selectedRegion,
+		}));
+		return true;
+	} catch (error) {
+		context.setState((prev) => ({
+			...prev,
+			configureStatus: "error",
+			configureError: `Unexpected error: ${error}`,
+		}));
+		return false;
+	}
+}
+
+export async function toggleLED(
+	context: WizardContext<ConfigureState>,
+	enabled: boolean,
+): Promise<void> {
+	const nabuCasa = context.zwaveBinding?.controller?.proprietary["Nabu Casa"];
+	if (!nabuCasa) return;
+
+	context.setState((prev) => ({ ...prev, togglingLed: true }));
+	try {
+		await nabuCasa.setLEDBinary(enabled);
+		context.setState((prev) => ({
+			...prev,
+			ledEnabled: enabled,
+			togglingLed: false,
+		}));
+	} catch {
+		context.setState((prev) => ({ ...prev, togglingLed: false }));
+	}
+}
+
+export async function toggleTiltIndicator(
+	context: WizardContext<ConfigureState>,
+	enabled: boolean,
+): Promise<void> {
+	const nabuCasa = context.zwaveBinding?.controller?.proprietary["Nabu Casa"];
+	if (!nabuCasa) return;
+
+	context.setState((prev) => ({ ...prev, togglingTilt: true }));
+	try {
+		await nabuCasa.setConfig(
+			NabuCasaConfigKey.EnableTiltIndicator,
+			enabled ? 1 : 0,
+		);
+		context.setState((prev) => ({
+			...prev,
+			tiltIndicatorEnabled: enabled,
+			togglingTilt: false,
+		}));
+	} catch {
+		context.setState((prev) => ({ ...prev, togglingTilt: false }));
+	}
+}
+
 export const configureWizardConfig: WizardConfig<ConfigureState> = {
 	id: "configure",
 	title: "Configure ZWA-2",
 	description:
 		"View and change the RF region and other settings on your ZWA-2.",
 	icon: Cog6ToothIcon,
-	iconForeground: "text-purple-700 dark:text-purple-400",
-	iconBackground: "bg-purple-50 dark:bg-purple-500/10",
+	iconForeground: "text-green-700 dark:text-green-400",
+	iconBackground: "bg-green-50 dark:bg-green-500/10",
 	createInitialState: () => ({
 		detectionState: "pending",
 		detectedFirmwareType: null,
@@ -182,6 +326,11 @@ export const configureWizardConfig: WizardConfig<ConfigureState> = {
 		configureStatus: "idle",
 		configureError: null,
 		dsk: null,
+		supportedRegions: [],
+		ledEnabled: null,
+		tiltIndicatorEnabled: null,
+		togglingLed: false,
+		togglingTilt: false,
 	}),
 	steps: [
 		{

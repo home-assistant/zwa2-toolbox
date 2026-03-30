@@ -1,7 +1,12 @@
 import { useEffect, useState, useCallback } from "react";
 import type { WizardStepProps } from "../../components/Wizard";
 import type { ConfigureState } from "./wizard";
-import { applyRegionConfiguration } from "./wizard";
+import {
+	applyRepeaterRegionConfiguration,
+	applyControllerRegionConfiguration,
+	toggleLED,
+	toggleTiltIndicator,
+} from "./wizard";
 import Spinner from "../../components/Spinner";
 import Alert from "../../components/Alert";
 import { generateRepeaterQRCode } from "../../lib/qr-code";
@@ -67,7 +72,7 @@ function RepeaterConfiguration({
 		context.state;
 
 	const handleApply = useCallback(async () => {
-		await applyRegionConfiguration(context);
+		await applyRepeaterRegionConfiguration(context);
 	}, [context]);
 
 	return (
@@ -150,6 +155,197 @@ function RepeaterConfiguration({
 	);
 }
 
+function Toggle({
+	label,
+	description,
+	enabled,
+	toggling,
+	onToggle,
+}: {
+	label: string;
+	description: string;
+	enabled: boolean;
+	toggling: boolean;
+	onToggle: (enabled: boolean) => void;
+}) {
+	return (
+		<div className="flex items-center justify-between">
+			<div>
+				<p className="text-sm font-medium text-primary">{label}</p>
+				<p className="text-sm text-secondary">{description}</p>
+			</div>
+			{toggling ? (
+				<Spinner size="h-5 w-5" />
+			) : (
+				<button
+					type="button"
+					role="switch"
+					aria-checked={enabled}
+					onClick={() => onToggle(!enabled)}
+					className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus-visible:ring-2 focus-visible:ring-blue-500 focus-visible:ring-offset-2 ${
+						enabled
+							? "bg-blue-600 dark:bg-blue-500"
+							: "bg-gray-200 dark:bg-gray-700"
+					}`}
+				>
+					<span
+						aria-hidden="true"
+						className={`pointer-events-none inline-block h-5 w-5 transform rounded-full bg-white shadow ring-0 transition duration-200 ease-in-out ${
+							enabled ? "translate-x-5" : "translate-x-0"
+						}`}
+					/>
+				</button>
+			)}
+		</div>
+	);
+}
+
+function ControllerConfiguration({
+	context,
+}: WizardStepProps<ConfigureState>) {
+	const {
+		selectedRegion,
+		configureStatus,
+		configureError,
+		supportedRegions,
+		ledEnabled,
+		tiltIndicatorEnabled,
+		togglingLed,
+		togglingTilt,
+	} = context.state;
+
+	const handleApplyRegion = useCallback(async () => {
+		await applyControllerRegionConfiguration(context);
+	}, [context]);
+
+	const handleToggleLed = useCallback(
+		(enabled: boolean) => {
+			void toggleLED(context, enabled);
+		},
+		[context],
+	);
+
+	const handleToggleTilt = useCallback(
+		(enabled: boolean) => {
+			void toggleTiltIndicator(context, enabled);
+		},
+		[context],
+	);
+
+	return (
+		<div className="space-y-8">
+			{/* Region selector */}
+			<div>
+				<h3 className="text-lg font-medium text-primary mb-2">
+					RF Region
+				</h3>
+				<p className="text-gray-600 dark:text-gray-300 mb-4">
+					Select the RF region for your Z-Wave controller.
+				</p>
+
+				{configureError && (
+					<div className="mb-4">
+						<Alert title="Configuration failed" severity="error">
+							<p>{configureError}</p>
+						</Alert>
+					</div>
+				)}
+
+				{configureStatus === "configuring" ? (
+					<div className="flex items-center gap-3">
+						<Spinner size="h-5 w-5" />
+						<span className="text-secondary">
+							Configuring RF region...
+						</span>
+					</div>
+				) : (
+					<div className="flex items-center gap-3">
+						<div>
+							<label
+								htmlFor="rf-region-ctrl"
+								className="sr-only"
+							>
+								RF Region
+							</label>
+							<select
+								id="rf-region-ctrl"
+								value={selectedRegion != null ? String(selectedRegion) : ""}
+								onChange={(e) => {
+									const val = e.target.value;
+									context.setState((prev) => ({
+										...prev,
+										selectedRegion: val ? Number(val) : null,
+										configureStatus: "idle",
+										configureError: null,
+									}));
+								}}
+								style={{ width: "16rem" }}
+								className="rounded-md border border-gray-300 dark:border-gray-600 bg-white dark:bg-gray-800 py-2 pl-3 pr-10 text-gray-900 dark:text-white focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 sm:text-sm"
+							>
+								<option value="">Select a region...</option>
+								{supportedRegions.map((region) => (
+									<option
+										key={region.value}
+										value={String(region.value)}
+										disabled={region.disabled}
+									>
+										{region.label}
+									</option>
+								))}
+							</select>
+						</div>
+						<button
+							onClick={handleApplyRegion}
+							disabled={
+								selectedRegion == null ||
+								selectedRegion === context.state.currentRegion
+							}
+							className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-400"
+						>
+							Apply
+						</button>
+					</div>
+				)}
+
+				{configureStatus === "success" && (
+					<p className="mt-3 text-sm text-green-600 dark:text-green-400">
+						RF region configured successfully.
+					</p>
+				)}
+			</div>
+
+			{/* LED and Tilt toggles */}
+			{(ledEnabled != null || tiltIndicatorEnabled != null) && (
+				<div>
+					<h3 className="text-lg font-medium text-primary mb-4">
+						Device Settings
+					</h3>
+					<div className="space-y-4">
+						{ledEnabled != null && (
+							<Toggle
+								label="LED"
+								description="Turn the status LED on or off."
+								enabled={ledEnabled}
+								toggling={togglingLed}
+								onToggle={handleToggleLed}
+							/>
+						)}
+						{tiltIndicatorEnabled != null && (
+							<Toggle
+								label="Tilt indicator"
+								description="Show LED feedback when the device is tilted."
+								enabled={tiltIndicatorEnabled}
+								toggling={togglingTilt}
+								onToggle={handleToggleTilt}
+							/>
+						)}
+					</div>
+				</div>
+			)}
+		</div>
+	);
+}
+
 function UnconfigurableFirmware({
 	firmwareType,
 }: {
@@ -192,6 +388,14 @@ export default function ConfigureStep({
 		return (
 			<div className="py-8">
 				<RepeaterConfiguration context={context} />
+			</div>
+		);
+	}
+
+	if (detectedFirmwareType === "controller") {
+		return (
+			<div className="py-8">
+				<ControllerConfiguration context={context} />
 			</div>
 		);
 	}
