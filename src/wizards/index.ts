@@ -1,4 +1,5 @@
 import { installFirmwareWizardConfig } from "./install-firmware";
+import { configureWizardConfig } from "./configure";
 import {
 	updateESPFirmwareWizardConfig,
 	// updateESPBridgeWizardConfig,
@@ -11,6 +12,7 @@ import { recoverAdapterWizardConfig } from "./recover-adapter";
 export const wizards = [
 	installFirmwareWizardConfig,
 	updateESPFirmwareWizardConfig,
+	configureWizardConfig,
 	//   updateFirmwareWizardConfig,
 	recoverAdapterWizardConfig,
 	// updateESPBridgeWizardConfig,
