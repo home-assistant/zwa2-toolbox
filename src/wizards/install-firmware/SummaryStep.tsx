@@ -32,7 +32,7 @@ function SmartStartQRCode({ dsk }: { dsk: string }) {
           dangerouslySetInnerHTML={{ __html: svgMarkup }}
         />
         <p className="mt-3 font-mono text-sm text-blue-900 dark:text-blue-100 select-all break-all">
-          DSK: {dsk}
+          DSK: <span className="font-bold underline">{dsk.slice(0, 5)}</span>{dsk.slice(5)}
         </p>
       </div>
     </div>
