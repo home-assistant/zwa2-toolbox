@@ -1,12 +1,43 @@
+import { useEffect, useState } from 'react';
 import type { WizardStepProps } from '../../components/Wizard';
 import type { InstallFirmwareState } from './wizard';
 import { firmwareTypeFromOption } from './wizard';
+import { generateRepeaterQRCode } from '../../lib/qr-code';
 
 const FIRMWARE_TYPE_LABELS = {
   controller: "controller",
   repeater: "repeater",
   zniffer: "Zniffer",
 } as const;
+
+function SmartStartQRCode({ dsk }: { dsk: string }) {
+  const [svgMarkup, setSvgMarkup] = useState<string | null>(null);
+
+  useEffect(() => {
+    generateRepeaterQRCode(dsk).then(setSvgMarkup).catch((err) => {
+      console.error("Failed to generate QR code:", err);
+    });
+  }, [dsk]);
+
+  if (!svgMarkup) return null;
+
+  return (
+    <div className="mt-4 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
+      <p className="font-medium text-blue-800 dark:text-blue-300 mb-3">
+        Scan QR code to join via SmartStart:
+      </p>
+      <div className="flex flex-col items-center">
+        <div
+          className="w-64 bg-white rounded-lg overflow-hidden [&>svg]:w-full [&>svg]:h-auto [&>svg]:block"
+          dangerouslySetInnerHTML={{ __html: svgMarkup }}
+        />
+        <p className="mt-3 font-mono text-sm text-blue-900 dark:text-blue-100 select-all break-all">
+          DSK: {dsk}
+        </p>
+      </div>
+    </div>
+  );
+}
 
 export default function SummaryStep({ context }: WizardStepProps<InstallFirmwareState>) {
   const { flashResult, errorMessage, selectedFirmware } = context.state;
@@ -33,17 +64,7 @@ export default function SummaryStep({ context }: WizardStepProps<InstallFirmware
                 The latest {firmwareLabel} firmware has been installed.
               </p>
               {context.state.dsk && (
-                <div className="mt-4 p-4 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-700 rounded-lg text-left">
-                  <p className="font-medium text-yellow-800 dark:text-yellow-300 mb-2">
-                    Write down the DSK of your ZWA-2:
-                  </p>
-                  <p className="font-mono text-lg text-yellow-900 dark:text-yellow-100 select-all">
-                    {context.state.dsk}
-                  </p>
-                  <p className="mt-2 text-sm text-yellow-700 dark:text-yellow-400">
-                    You will need this key to include it in a Z-Wave network.
-                  </p>
-                </div>
+                <SmartStartQRCode dsk={context.state.dsk} />
               )}
             </div>
           )
