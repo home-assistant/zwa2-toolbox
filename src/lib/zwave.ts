@@ -629,6 +629,16 @@ export class ZWaveBinding {
 		}
 	}
 
+	// --- Controller-specific methods (Serial API mode) ---
+
+	/** Returns the controller instance, or null if the driver is not in Serial API mode. */
+	get controller() {
+		if (!this.driver || this.driver.mode !== DriverMode.SerialAPI) {
+			return null;
+		}
+		return this.driver.controller;
+	}
+
 	async disconnect(): Promise<void> {
 		if (this.driver) {
 			this.driver.removeAllListeners();

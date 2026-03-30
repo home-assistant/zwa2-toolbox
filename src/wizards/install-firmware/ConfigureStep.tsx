@@ -2,19 +2,7 @@ import type { WizardStepProps } from "../../components/Wizard";
 import type { InstallFirmwareState } from "./wizard";
 import Spinner from "../../components/Spinner";
 import Alert from "../../components/Alert";
-
-const RF_REGIONS = [
-	{ label: "Europe", value: "EU" },
-	{ label: "USA", value: "US" },
-	{ label: "Australia/New Zealand", value: "ANZ" },
-	{ label: "Hong Kong", value: "HK" },
-	{ label: "India", value: "IN" },
-	{ label: "Israel", value: "IL" },
-	{ label: "Russia", value: "RU" },
-	{ label: "China", value: "CN" },
-	{ label: "Japan", value: "JP" },
-	{ label: "Korea", value: "KR" },
-] as const;
+import { RF_REGIONS } from "../../lib/regions";
 
 export default function ConfigureStep({
 	context,

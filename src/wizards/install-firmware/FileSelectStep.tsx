@@ -1,13 +1,8 @@
 import type { WizardStepProps } from '../../components/Wizard';
-import type { InstallFirmwareState, FirmwareOption, FirmwareType } from './wizard';
+import type { InstallFirmwareState, FirmwareOption } from './wizard';
 import { firmwareTypeFromOption, needsDataLossWarning } from './wizard';
 import Spinner from '../../components/Spinner';
-
-const FIRMWARE_TYPE_LABELS: Record<FirmwareType, string> = {
-  controller: "Controller",
-  repeater: "Repeater",
-  zniffer: "Zniffer",
-};
+import { FIRMWARE_TYPE_LABELS } from '../../lib/regions';
 
 const firmwareOptions: Array<{ value: FirmwareOption; label: string; description: string; experimental?: boolean }> = [
   {
