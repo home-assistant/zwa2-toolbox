@@ -8,13 +8,11 @@ import type {
 	WizardStepProps,
 } from "../../components/Wizard";
 import type { FirmwareType } from "../../lib/firmware-download";
-import {
-	RFRegion,
-	getLegalPowerlevelMesh,
-	getLegalPowerlevelLR,
-} from "@zwave-js/core/definitions";
+import { applyRepeaterRegion } from "../../lib/regions";
+import { RFRegion } from "@zwave-js/core/definitions";
 import { NabuCasaConfigKey } from "zwave-js/Controller";
 import { getEnumMemberName } from "zwave-js";
+import { getErrorMessage } from "@zwave-js/shared";
 
 export interface RegionOption {
 	value: RFRegion;
@@ -42,19 +40,6 @@ export type ConfigureState = {
 };
 
 export type ConfigureWizardStepProps = WizardStepProps<ConfigureState>;
-
-const CLI_REGION_TO_RF_REGION: Record<string, RFRegion> = {
-	EU: RFRegion.Europe,
-	US: RFRegion.USA,
-	ANZ: RFRegion["Australia/New Zealand"],
-	HK: RFRegion["Hong Kong"],
-	IN: RFRegion.India,
-	IL: RFRegion.Israel,
-	RU: RFRegion.Russia,
-	CN: RFRegion.China,
-	JP: RFRegion.Japan,
-	KR: RFRegion.Korea,
-};
 
 async function handleDetectStepEntry(
 	context: WizardContext<ConfigureState>,
@@ -158,54 +143,17 @@ export async function applyRepeaterRegionConfiguration(
 	}));
 
 	try {
-		const setSuccess = await context.zwaveBinding.setRegion(selectedRegion);
-		if (!setSuccess) {
+		const result = await applyRepeaterRegion(
+			context.zwaveBinding,
+			selectedRegion,
+		);
+		if (result !== true) {
 			context.setState((prev) => ({
 				...prev,
 				configureStatus: "error",
-				configureError: "Failed to set RF region. Please try again.",
+				configureError: result,
 			}));
 			return false;
-		}
-
-		// Wait for ZWA-2 to reboot
-		const { wait } = await import("alcalzone-shared/async");
-		await wait(1000);
-
-		// Verify region
-		const confirmedRegion = await context.zwaveBinding.getRegion();
-		if (confirmedRegion !== selectedRegion) {
-			context.setState((prev) => ({
-				...prev,
-				configureStatus: "error",
-				configureError: `Region verification failed. Expected "${selectedRegion}" but got "${confirmedRegion ?? "unknown"}".`,
-			}));
-			return false;
-		}
-
-		// Configure power levels if legal limits are known for this region
-		const rfRegion = CLI_REGION_TO_RF_REGION[selectedRegion];
-		if (rfRegion != null) {
-			const meshLimit = getLegalPowerlevelMesh(rfRegion);
-			const lrLimit = getLegalPowerlevelLR(rfRegion);
-
-			if (meshLimit != null || lrLimit != null) {
-				const current = await context.zwaveBinding.getPowerlevel();
-				if (current) {
-					const newMeshMax =
-						meshLimit != null
-							? meshLimit * 10
-							: current.txPowerMax;
-					const newLRMax =
-						lrLimit != null ? lrLimit * 10 : current.txPowerMaxLR;
-
-					await context.zwaveBinding.setPowerlevel(
-						newMeshMax,
-						current.txPowerAdjust,
-						newLRMax,
-					);
-				}
-			}
 		}
 
 		context.setState((prev) => ({
@@ -218,7 +166,7 @@ export async function applyRepeaterRegionConfiguration(
 		context.setState((prev) => ({
 			...prev,
 			configureStatus: "error",
-			configureError: `Unexpected error: ${error}`,
+			configureError: `Unexpected error: ${getErrorMessage(error)}`,
 		}));
 		return false;
 	}
@@ -261,7 +209,7 @@ export async function applyControllerRegionConfiguration(
 		context.setState((prev) => ({
 			...prev,
 			configureStatus: "error",
-			configureError: `Unexpected error: ${error}`,
+			configureError: `Unexpected error: ${getErrorMessage(error)}`,
 		}));
 		return false;
 	}

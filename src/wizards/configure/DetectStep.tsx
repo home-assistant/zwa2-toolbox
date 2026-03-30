@@ -3,7 +3,7 @@ import type { ConfigureState } from "./wizard";
 import Spinner from "../../components/Spinner";
 
 // eslint-disable-next-line @typescript-eslint/no-unused-vars
-export default function DetectStep(_props: WizardStepProps<ConfigureState>) {
+export default function DetectStep(_: WizardStepProps<ConfigureState>) {
 	return (
 		<div className="text-center py-8">
 			<Spinner size="h-8 w-8" className="inline-block mb-4" />

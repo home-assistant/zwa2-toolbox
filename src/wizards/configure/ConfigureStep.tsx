@@ -1,4 +1,3 @@
-import { useEffect, useState, useCallback } from "react";
 import type { WizardStepProps } from "../../components/Wizard";
 import type { ConfigureState } from "./wizard";
 import {
@@ -9,71 +8,14 @@ import {
 } from "./wizard";
 import Spinner from "../../components/Spinner";
 import Alert from "../../components/Alert";
-import { generateRepeaterQRCode } from "../../lib/qr-code";
-
-const RF_REGIONS = [
-	{ label: "Europe", value: "EU" },
-	{ label: "USA", value: "US" },
-	{ label: "Australia/New Zealand", value: "ANZ" },
-	{ label: "Hong Kong", value: "HK" },
-	{ label: "India", value: "IN" },
-	{ label: "Israel", value: "IL" },
-	{ label: "Russia", value: "RU" },
-	{ label: "China", value: "CN" },
-	{ label: "Japan", value: "JP" },
-	{ label: "Korea", value: "KR" },
-] as const;
-
-const FIRMWARE_TYPE_LABELS = {
-	controller: "Controller",
-	repeater: "Repeater",
-	zniffer: "Zniffer",
-} as const;
-
-function SmartStartQRCode({ dsk }: { dsk: string }) {
-	const [svgMarkup, setSvgMarkup] = useState<string | null>(null);
-
-	useEffect(() => {
-		generateRepeaterQRCode(dsk)
-			.then(setSvgMarkup)
-			.catch((err) => {
-				console.error("Failed to generate QR code:", err);
-			});
-	}, [dsk]);
-
-	if (!svgMarkup) return null;
-
-	return (
-		<div className="mt-6 p-4 bg-blue-50 dark:bg-blue-900/20 border border-blue-200 dark:border-blue-700 rounded-lg">
-			<p className="font-medium text-blue-800 dark:text-blue-300 mb-3">
-				Scan QR code to join via SmartStart:
-			</p>
-			<div className="flex flex-col items-center">
-				<div
-					className="w-64 bg-white rounded-lg overflow-hidden [&>svg]:w-full [&>svg]:h-auto [&>svg]:block"
-					dangerouslySetInnerHTML={{ __html: svgMarkup }}
-				/>
-				<p className="mt-3 font-mono text-sm text-blue-900 dark:text-blue-100 select-all break-all">
-					DSK:{" "}
-					<span className="font-bold underline">
-						{dsk.slice(0, 5)}
-					</span>
-					{dsk.slice(5)}
-				</p>
-			</div>
-		</div>
-	);
-}
+import SmartStartQRCode from "../../components/SmartStartQRCode";
+import { RF_REGIONS, FIRMWARE_TYPE_LABELS } from "../../lib/regions";
 
 function RepeaterConfiguration({
 	context,
 }: WizardStepProps<ConfigureState>) {
 	const { selectedRegion, configureStatus, configureError, dsk } =
 		context.state;
-
-	const handleApply = useCallback(async () => {
-		await applyRepeaterRegionConfiguration(context);
-	}, [context]);
 
 	return (
 		<div>
@@ -135,7 +77,7 @@ function RepeaterConfiguration({
 						</select>
 					</div>
 					<button
-						onClick={handleApply}
+						onClick={() => applyRepeaterRegionConfiguration(context)}
 						disabled={!selectedRegion || selectedRegion === context.state.currentRegion}
 						className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-400"
 					>
@@ -214,24 +156,6 @@ function ControllerConfiguration({
 		togglingTilt,
 	} = context.state;
 
-	const handleApplyRegion = useCallback(async () => {
-		await applyControllerRegionConfiguration(context);
-	}, [context]);
-
-	const handleToggleLed = useCallback(
-		(enabled: boolean) => {
-			void toggleLED(context, enabled);
-		},
-		[context],
-	);
-
-	const handleToggleTilt = useCallback(
-		(enabled: boolean) => {
-			void toggleTiltIndicator(context, enabled);
-		},
-		[context],
-	);
-
 	return (
 		<div className="space-y-8">
 			{/* Region selector */}
@@ -295,7 +219,7 @@ function ControllerConfiguration({
 							</select>
 						</div>
 						<button
-							onClick={handleApplyRegion}
+							onClick={() => applyControllerRegionConfiguration(context)}
 							disabled={
 								selectedRegion == null ||
 								selectedRegion === context.state.currentRegion
@@ -327,7 +251,7 @@ function ControllerConfiguration({
 								description="Turn the status LED on or off."
 								enabled={ledEnabled}
 								toggling={togglingLed}
-								onToggle={handleToggleLed}
+								onToggle={(enabled) => toggleLED(context, enabled)}
 							/>
 						)}
 						{tiltIndicatorEnabled != null && (
@@ -336,7 +260,7 @@ function ControllerConfiguration({
 								description="Show LED feedback when the device is tilted."
 								enabled={tiltIndicatorEnabled}
 								toggling={togglingTilt}
-								onToggle={handleToggleTilt}
+								onToggle={(enabled) => toggleTiltIndicator(context, enabled)}
 							/>
 						)}
 					</div>
