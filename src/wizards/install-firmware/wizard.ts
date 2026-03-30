@@ -36,6 +36,7 @@ export interface InstallFirmwareState {
 	detectedFirmwareType: FirmwareType | null;
 	detectionState: "pending" | "detecting" | "done";
 	dataLossConfirmed: boolean;
+	firmwarePreselected: boolean;
 	dsk: string | null;
 	selectedRegion: string | null;
 	configureStatus: "idle" | "configuring" | "success" | "error" | "skipped";
@@ -92,20 +93,35 @@ async function handleFileSelectStepEntry(
 
 	context.setState((prev) => ({ ...prev, detectionState: "detecting" }));
 
-	if (!context.zwaveBinding) {
-		context.setState((prev) => ({ ...prev, detectionState: "done" }));
-		return;
+	let detected: FirmwareType | null = null;
+	if (context.zwaveBinding) {
+		try {
+			const result =
+				await context.zwaveBinding.detectFirmwareType();
+			detected = result === "unknown" ? null : result;
+		} catch {
+			// Detection failed, leave as null
+		}
 	}
 
-	try {
-		const detected = await context.zwaveBinding.detectFirmwareType();
-		context.setState((prev) => ({
-			...prev,
-			detectedFirmwareType: detected === "unknown" ? null : detected,
-			detectionState: "done",
-		}));
-	} catch {
-		context.setState((prev) => ({ ...prev, detectionState: "done" }));
+	// Capture initial-state fields before the async setState call.
+	// These are set in createInitialState and never mutated by setState,
+	// so reading them here is safe — but reading from context.state after
+	// setState would be stale.
+	const { firmwarePreselected, selectedFirmware } = context.state;
+
+	context.setState((prev) => ({
+		...prev,
+		detectedFirmwareType: detected,
+		detectionState: "done",
+	}));
+
+	// Auto-advance when firmware is preselected and no data loss warning is needed
+	if (firmwarePreselected && selectedFirmware) {
+		const target = firmwareTypeFromOption(selectedFirmware);
+		if (!needsDataLossWarning(detected, target)) {
+			context.goToStep("Install firmware");
+		}
 	}
 }
 
@@ -411,6 +427,7 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 		detectedFirmwareType: null,
 		detectionState: "pending",
 		dataLossConfirmed: false,
+		firmwarePreselected: false,
 		dsk: null,
 		selectedRegion: null,
 		configureStatus: "idle",

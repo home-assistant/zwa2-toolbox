@@ -1,1 +1,1 @@
-export { installFirmwareWizardConfig, type InstallFirmwareState } from './wizard';
+export { installFirmwareWizardConfig, type InstallFirmwareState, type FirmwareOption } from './wizard';

@@ -6,9 +6,11 @@ import WebSerialWarning from "../components/WebSerialWarning";
 import Wizard from "../components/Wizard";
 import { useBaseWizardContext } from "../hooks/useBaseWizardContext";
 import styles from "../index.css?inline";
-import { recoverAdapterWizardConfig } from "../wizards/recover-adapter";
+import { configureWizardConfig } from "../wizards/configure";
 
-function RecoverAdapterWizard() {
+const standaloneConfig = { ...configureWizardConfig, standalone: true };
+
+function ConfigureWizard() {
 	const baseContext = useBaseWizardContext();
 
 	if (!("serial" in navigator)) {
@@ -25,22 +27,15 @@ function RecoverAdapterWizard() {
 	return (
 		<>
 			<style>{styles}</style>
-			<Wizard
-				config={recoverAdapterWizardConfig}
-				baseContext={baseContext}
-			/>
+			<Wizard config={standaloneConfig} baseContext={baseContext} />
 		</>
 	);
 }
 
 // Convert the React component to a web component
-const RecoverAdapterWebComponent = r2wc(
-	RecoverAdapterWizard,
-	React,
-	ReactDOM,
-);
+const ConfigureWebComponent = r2wc(ConfigureWizard, React, ReactDOM);
 
 // Register the web component
-customElements.define("recover-adapter", RecoverAdapterWebComponent);
+customElements.define("configure-zwa2", ConfigureWebComponent);
 
-export default RecoverAdapterWizard;
+export default ConfigureWizard;

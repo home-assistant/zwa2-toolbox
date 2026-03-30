@@ -27,6 +27,14 @@ export default defineConfig({
 					__dirname,
 					"src/standalone/recover-adapter.tsx",
 				),
+				"install-firmware": resolve(
+					__dirname,
+					"src/standalone/install-firmware.tsx",
+				),
+				"configure-zwa2": resolve(
+					__dirname,
+					"src/standalone/configure.tsx",
+				),
 			},
 			output: {
 				entryFileNames: (chunkInfo) => {
@@ -34,7 +42,9 @@ export default defineConfig({
 					if (
 						chunkInfo.name === "install-esp-bridge-firmware" ||
 						chunkInfo.name === "install-esphome-firmware" ||
-						chunkInfo.name === "recover-adapter"
+						chunkInfo.name === "recover-adapter" ||
+						chunkInfo.name === "install-firmware" ||
+						chunkInfo.name === "configure-zwa2"
 					) {
 						return "standalone/[name].js";
 					}
