@@ -24,7 +24,7 @@
 		"@zwave-js/bindings-browser": "^15.21.1",
 		"alcalzone-shared": "^5.0.0",
 		"autoprefixer": "^10.4.21",
-		"esbuild": "^0.25.9",
+		"esbuild": "^0.28.1",
 		"esbuild-plugins-node-modules-polyfill": "^1.7.1",
 		"eslint": "^9.34.0",
 		"eslint-plugin-react-hooks": "^5.2.0",
