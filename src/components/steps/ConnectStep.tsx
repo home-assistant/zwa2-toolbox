@@ -40,7 +40,7 @@ export default function ConnectStep<T>({ context }: WizardStepProps<T>) {
         <p className="text-gray-600 dark:text-gray-300">
           {isConnected
             ? 'Successfully connected to your ZWA-2.'
-            : 'First, we need to establish a connection to your ZWA-2.'
+            : 'First, make sure your ZWA-2 is plugged into this computer, then connect to it.'
           }
         </p>
       </div>
