@@ -136,6 +136,20 @@ function getRecoveryResult(state: RecoverAdapterState): RecoveryResult {
         )
       };
 
+    case "BLANK_BOOTLOADER_KEYS":
+      return {
+        tag: "BLANK_BOOTLOADER_KEYS",
+        severity: "error",
+        message: (
+          <div>
+            <p>The bootloader keys on your ZWA-2 adapter are missing, so it cannot accept firmware updates.</p>
+            <p className="mt-2">
+              <strong>Recommendation:</strong> Use the "Restore bootloader keys" wizard to repair it.
+            </p>
+          </div>
+        )
+      };
+
     case "UNKNOWN_FIRMWARE":
       return {
         tag: "UNKNOWN_FIRMWARE",
@@ -180,6 +194,8 @@ function getResultTitle(result: RecoveryResult): string {
       return "Recovery required";
     case "UNKNOWN_FIRMWARE":
       return "Unknown firmware";
+    case "BLANK_BOOTLOADER_KEYS":
+      return "Bootloader keys missing";
     default:
       return "Recovery summary";
   }

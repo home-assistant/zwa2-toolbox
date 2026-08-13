@@ -4,6 +4,7 @@ import type { UpdateESPFirmwareWizardStepProps, ESPFirmwareOption } from './wiza
 import { ESP_FIRMWARE_MANIFESTS } from './wizard';
 import { fetchManifestFirmwareInfo } from '../../lib/esp-firmware-download';
 import Modal from '../../components/Modal';
+import RadioCard from '../../components/RadioCard';
 
 export default function FileSelectStep({ context }: UpdateESPFirmwareWizardStepProps) {
   const { selectedFirmware } = context.state;
@@ -101,39 +102,17 @@ export default function FileSelectStep({ context }: UpdateESPFirmwareWizardStepP
           const isLoading = isLoadingManifestInfo && !manifestData;
 
           return (
-            <div
+            <RadioCard
               key={index}
-              className={`relative flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
-                isSelected(option.value)
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400'
-                  : 'border-app-border hover:border-app-border-hover'
-              }`}
-              onClick={() => handleOptionChange(option.value)}
-            >
-              <div className="flex items-center h-5">
-                <input
-                  type="radio"
-                  name="espFirmwareOption"
-                  checked={isSelected(option.value)}
-                  onChange={() => handleOptionChange(option.value)}
-                  className="h-4 w-4 text-blue-600 border-app-border focus:ring-blue-500 dark:bg-gray-700"
-                />
-              </div>
-              <div className="ml-3 text-sm flex-1">
-                <div className="flex items-center gap-1 flex-wrap">
-                  <label className="font-medium text-primary cursor-pointer">
-                    {option.label}
-                  </label>
-                  {option.experimental && (
-                    <span className="inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-yellow-100 text-yellow-800 dark:bg-yellow-900/20 dark:text-yellow-400">
-                      Experimental
-                    </span>
-                  )}
-                  {isLoading && (
-                    <span className="text-secondary">
-                      · Loading...
-                    </span>
-                  )}
+              name="espFirmwareOption"
+              selected={isSelected(option.value)}
+              onSelect={() => handleOptionChange(option.value)}
+              label={option.label}
+              description={option.description}
+              experimental={option.experimental}
+              labelSuffix={
+                <>
+                  {isLoading && <span className="text-secondary">· Loading...</span>}
                   {manifestData && (
                     <>
                       <span className="text-secondary">
@@ -147,12 +126,9 @@ export default function FileSelectStep({ context }: UpdateESPFirmwareWizardStepP
                       </button>
                     </>
                   )}
-                </div>
-                <p className="text-secondary mt-1">
-                  {option.description}
-                </p>
-              </div>
-            </div>
+                </>
+              }
+            />
           );
         })}
       </div>

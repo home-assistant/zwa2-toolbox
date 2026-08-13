@@ -2,6 +2,7 @@ import type { WizardStepProps } from '../../components/Wizard';
 import type { InstallFirmwareState, FirmwareOption } from './wizard';
 import { firmwareTypeFromOption, needsDataLossWarning } from './wizard';
 import Spinner from '../../components/Spinner';
+import RadioCard from '../../components/RadioCard';
 import { FIRMWARE_TYPE_LABELS } from '../../lib/regions';
 
 const firmwareOptions: Array<{ value: FirmwareOption; label: string; description: string; experimental?: boolean }> = [
@@ -73,38 +74,15 @@ export default function FileSelectStep({ context }: WizardStepProps<InstallFirmw
       {!firmwarePreselected && (
         <div className="space-y-4">
           {firmwareOptions.map((option, index) => (
-            <div
+            <RadioCard
               key={index}
-              className={`relative flex items-start p-4 border rounded-lg cursor-pointer transition-colors ${
-                isSelected(option.value)
-                  ? 'border-blue-500 bg-blue-50 dark:bg-blue-500/10 dark:border-blue-400'
-                  : 'border-app-border hover:border-app-border-hover'
-              }`}
-              onClick={() => handleOptionChange(option.value)}
-            >
-              <div className="flex items-center h-5">
-                <input
-                  type="radio"
-                  name="firmwareOption"
-                  checked={isSelected(option.value)}
-                  onChange={() => handleOptionChange(option.value)}
-                  className="h-4 w-4 text-blue-600 border-app-border focus:ring-blue-500 dark:bg-gray-700"
-                />
-              </div>
-              <div className="ml-3 text-sm">
-                <label className="font-medium text-primary cursor-pointer">
-                  {option.label}
-                  {option.experimental && (
-                    <span className="ml-2 inline-flex items-center rounded-full bg-yellow-100 dark:bg-yellow-900/30 px-2 py-0.5 text-xs font-medium text-yellow-800 dark:text-yellow-300">
-                      Experimental
-                    </span>
-                  )}
-                </label>
-                <p className="text-secondary">
-                  {option.description}
-                </p>
-              </div>
-            </div>
+              name="firmwareOption"
+              selected={isSelected(option.value)}
+              onSelect={() => handleOptionChange(option.value)}
+              label={option.label}
+              description={option.description}
+              experimental={option.experimental}
+            />
           ))}
         </div>
       )}

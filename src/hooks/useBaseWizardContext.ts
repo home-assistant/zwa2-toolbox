@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import type { BaseWizardContext, ConnectionState } from '../components/Wizard';
-import { ZWavePortManager, ZWA2_DEVICE_FILTERS } from '../lib/zwave';
+import { ZWavePortManager, ZWA2_DEVICE_FILTERS, openSerialPort } from '../lib/zwave';
 import { ESPPortManager, ESP32_DEVICE_FILTERS } from '../lib/esp-utils';
 
 /**
@@ -76,7 +76,7 @@ export function useBaseWizardContext(): BaseWizardContext {
 			}
 
 			// Open the port
-			await port.open({ baudRate: 115200 });
+			await openSerialPort(port);
 
 			// Detect device type based on VID/PID
 			const info = port.getInfo();

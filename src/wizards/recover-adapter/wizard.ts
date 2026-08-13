@@ -15,6 +15,7 @@ import {
 	openFirmwareFile,
 } from "../../lib/firmware-download";
 import { type BytesView } from "@zwave-js/shared";
+import { OTW_ERROR_BLANK_ENCRYPTION_KEY } from "../../lib/zwave";
 
 export type DiagnosisResult =
 	| { tag: "NO_ISSUES" }
@@ -23,6 +24,7 @@ export type DiagnosisResult =
 	| { tag: "CORRUPTED_FIRMWARE" }
 	| { tag: "UNKNOWN_FIRMWARE" }
 	| { tag: "CONNECTION_FAILED" }
+	| { tag: "BLANK_BOOTLOADER_KEYS" }
 	| { tag: "INVALID_CONTROLLER_NODE_ID_239" }
 	| { tag: "FIXED_CONTROLLER_NODE_ID_239" }
 	| { tag: "FIXING_CONTROLLER_NODE_ID_239_FAILED" }
@@ -182,12 +184,12 @@ async function startRecovery(
 		}
 
 		// Flash the firmware
-		const success = await context.zwaveBinding.flashFirmware(
+		const flashed = await context.zwaveBinding.flashFirmware(
 			fileName,
 			firmwareData,
 		);
 
-		if (success) {
+		if (flashed.success) {
 			// Check the mode after recovery
 			const mode = context.zwaveBinding.getDriverMode();
 			if (mode === DriverMode.SerialAPI) {
@@ -214,13 +216,18 @@ async function startRecovery(
 			context.setState((prev) => ({
 				...prev,
 				isRecovering: false,
-				finalResult: { tag: "RECOVERY_FAILED" },
+				finalResult: {
+					tag:
+						flashed.errorCode === OTW_ERROR_BLANK_ENCRYPTION_KEY
+							? "BLANK_BOOTLOADER_KEYS"
+							: "RECOVERY_FAILED",
+				},
 			}));
 		}
 
 		// Always navigate to summary after recovery attempt
 		context.goToStep("Summary");
-		return success;
+		return flashed.success;
 	} catch (error) {
 		console.error("Recovery failed:", error);
 		context.setState((prev) => ({
@@ -287,6 +294,10 @@ export async function diagnoseCorruptedFirmware(
 		return { tag: "CONNECTION_FAILED" };
 	}
 
+	if (await context.zwaveBinding.checkBootloaderKeys()) {
+		return { tag: "BLANK_BOOTLOADER_KEYS" };
+	}
+
 	return { tag: "NO_ISSUES" };
 }
 
@@ -351,6 +362,7 @@ export const recoverAdapterWizardConfig: WizardConfig<RecoverAdapterState> = {
 						case "CONNECTION_FAILED":
 						case "END_DEVICE_CLI":
 						case "ZNIFFER_FIRMWARE":
+						case "BLANK_BOOTLOADER_KEYS":
 							// Skip to summary automatically
 							context.setState((prev) => ({
 								...prev,

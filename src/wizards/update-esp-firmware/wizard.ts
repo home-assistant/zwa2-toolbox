@@ -101,16 +101,13 @@ export interface UpdateESPFirmwareLabels {
 export type UpdateESPFirmwareWizardStepProps = WizardStepProps<UpdateESPFirmwareState, UpdateESPFirmwareLabels>;
 
 export async function flashESPFirmwareWithData(
-	context: WizardContext<UpdateESPFirmwareState>,
+	serialPort: SerialPort,
 	firmwareData: Uint8Array,
 	firmwareOffset: number,
 	onProgress?: (progress: number) => void
 ): Promise<void> {
-	const serialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;
-	const connectionType = context.connectionState.status !== 'disconnected' ? context.connectionState.type : null;
-
-	if (!firmwareData || !serialPort || connectionType !== 'esp32') {
-		throw new Error("Missing firmware data or ESP serial port");
+	if (!firmwareData?.length) {
+		throw new Error("Missing firmware data");
 	}
 
 	let transport: Transport | undefined;
@@ -244,6 +241,13 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 			// ESP32 is already in bootloader mode, skip to install
 			console.log("ESP32 already in bootloader mode, proceeding directly to flashing");
 
+			const serialPort = context.connectionState.status === 'connected'
+				? context.connectionState.port
+				: null;
+			if (!serialPort) {
+				throw new Error("No ESP serial port connected");
+			}
+
 			context.setState((prev) => ({
 				...prev,
 				installState: { status: "installing", progress: 0, firmwareLabel },
@@ -256,7 +260,7 @@ async function handleInstallStepEntry(context: WizardContext<UpdateESPFirmwareSt
 				}));
 			};
 
-			await flashESPFirmwareWithData(context, firmwareData, firmwareOffset, onProgress);
+			await flashESPFirmwareWithData(serialPort, firmwareData, firmwareOffset, onProgress);
 			// Transition to power-cycle substep
 			context.setState((prev) => ({
 				...prev,

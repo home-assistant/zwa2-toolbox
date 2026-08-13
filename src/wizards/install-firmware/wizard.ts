@@ -14,6 +14,11 @@ import {
 	type FirmwareType,
 } from "../../lib/firmware-download";
 import { DriverMode } from "zwave-js";
+import {
+	BLANK_BOOTLOADER_KEYS_MESSAGE,
+	LIKELY_BLANK_BOOTLOADER_KEYS_MESSAGE,
+	OTW_ERROR_BLANK_ENCRYPTION_KEY,
+} from "../../lib/zwave";
 import { applyRepeaterRegion } from "../../lib/regions";
 import { type BytesView } from "@zwave-js/shared";
 
@@ -94,6 +99,7 @@ async function handleFileSelectStepEntry(
 	context.setState((prev) => ({ ...prev, detectionState: "detecting" }));
 
 	let detected: FirmwareType | null = null;
+	let keysBlank: boolean | null = null;
 	if (context.zwaveBinding) {
 		try {
 			const result =
@@ -102,6 +108,23 @@ async function handleFileSelectStepEntry(
 		} catch {
 			// Detection failed, leave as null
 		}
+		if (detected === "controller") {
+			keysBlank = await context.zwaveBinding.checkBootloaderKeys();
+		}
+	}
+
+	// Blank bootloader keys make the update abort in the bootloader.
+	// Downloading and flashing would gain nothing.
+	if (keysBlank) {
+		context.setState((prev) => ({
+			...prev,
+			detectedFirmwareType: detected,
+			detectionState: "done",
+			flashResult: "error",
+			errorMessage: BLANK_BOOTLOADER_KEYS_MESSAGE,
+		}));
+		context.goToStep("Summary");
+		return;
 	}
 
 	// Capture initial-state fields before the async setState call.
@@ -296,18 +319,21 @@ async function handleInstallStepEntry(
 		}
 
 		// Flash the firmware (already in bootloader, stays in bootloader after)
-		const success = await context.zwaveBinding.flashFirmware(
+		const flashed = await context.zwaveBinding.flashFirmware(
 			fileName,
 			firmwareData,
 		);
 
-		if (!success) {
+		if (!flashed.success) {
 			context.setState((prev) => ({
 				...prev,
 				isFlashing: false,
 				progress: 0,
 				flashResult: "error",
-				errorMessage: "Failed to install firmware",
+				errorMessage:
+					flashed.errorCode === OTW_ERROR_BLANK_ENCRYPTION_KEY
+						? LIKELY_BLANK_BOOTLOADER_KEYS_MESSAGE
+						: "Failed to install firmware",
 			}));
 			context.goToStep("Summary");
 			return;

@@ -3,7 +3,7 @@ import { LinkIcon, LinkSlashIcon } from '@heroicons/react/24/outline';
 import type { UpdateESPFirmwareWizardStepProps } from './wizard';
 import { flashESPFirmwareWithData } from './wizard';
 import CircularProgress from '../../components/CircularProgress';
-import Alert from '../../components/Alert';
+import ManualBootloaderInstructions from '../../components/ManualBootloaderInstructions';
 import Spinner from '../../components/Spinner';
 
 export default function InstallStep({ context }: UpdateESPFirmwareWizardStepProps) {
@@ -36,7 +36,7 @@ export default function InstallStep({ context }: UpdateESPFirmwareWizardStepProp
 				};
 
 				try {
-					await flashESPFirmwareWithData(context, firmwareData, firmwareOffset, onProgress);
+					await flashESPFirmwareWithData(currentSerialPort, firmwareData, firmwareOffset, onProgress);
 					context.setState((prev) => ({
 						...prev,
 						installState: { status: "waiting-for-power-cycle", firmwareLabel },
@@ -196,15 +196,7 @@ export default function InstallStep({ context }: UpdateESPFirmwareWizardStepProp
 						</button>
 
 						{bootloaderEntryFailed && (
-							<Alert title="To trigger the bootloader manually">
-								<ol className="list-decimal pl-6 my-2 space-y-1">
-									<li>Unplug the {context.labels.deviceName} and open it up</li>
-									<li>On the top right of the PCB, under "ESP GPIO pins", bridge GPIO0 and GND with something conductive</li>
-									<li>Plug the {context.labels.deviceName} back in</li>
-									<li>Retry connecting</li>
-								</ol>
-								<span className="block mt-2">Don't forget to remove the bridge after flashing!</span>
-							</Alert>
+							<ManualBootloaderInstructions deviceName={context.labels.deviceName} />
 						)}
 					</>
 				)}
