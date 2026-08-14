@@ -14,7 +14,7 @@ export interface BaseWizardContext {
   connectionState: ConnectionState;
   requestZWA2SerialPort: () => Promise<boolean>;
   requestESP32SerialPort: () => Promise<boolean>;
-  requestCombinedSerialPort?: () => Promise<{ success: boolean; deviceType?: 'zwa2' | 'esp32' | 'unknown'; needsBootloaderMode?: boolean }>;
+  requestCombinedSerialPort: () => Promise<{ success: boolean; deviceType?: 'zwa2' | 'esp32' | 'unknown'; needsBootloaderMode?: boolean }>;
   onDisconnect?: () => Promise<void>;
 }
 

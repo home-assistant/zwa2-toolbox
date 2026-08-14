@@ -1,8 +1,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import { InformationCircleIcon } from '@heroicons/react/24/outline';
 import type { UpdateESPFirmwareWizardStepProps, ESPFirmwareOption } from './wizard';
-import { ESP_FIRMWARE_MANIFESTS } from './wizard';
-import { fetchManifestFirmwareInfo } from '../../lib/esp-firmware-download';
+import { ESP_FIRMWARE_MANIFESTS, fetchManifestFirmwareInfo } from '../../lib/esp-firmware-download';
 import Modal from '../../components/Modal';
 import RadioCard from '../../components/RadioCard';
 

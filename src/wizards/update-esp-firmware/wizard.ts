@@ -6,7 +6,8 @@ import SummaryStep from "./SummaryStep";
 import ESPConnectStep from "./ESPConnectStep";
 import type { WizardConfig, WizardContext, WizardStepProps } from "../../components/Wizard";
 import { enterESPBootloader, ESP32_DEVICE_FILTERS } from "../../lib/esp-utils";
-import { ESPLoader, Transport, type FlashOptions, type LoaderOptions } from "esptool-js";
+import { flashESPFirmwareWithData } from "../../lib/esp-flash";
+import { ESP_FIRMWARE_MANIFESTS } from "../../lib/esp-firmware-download";
 import { ZWA2_DEVICE_FILTERS } from "../../lib/zwave";
 
 /**
@@ -17,34 +18,6 @@ export const COMBINED_DEVICE_FILTERS = [
 	...ZWA2_DEVICE_FILTERS,
 	...ESP32_DEVICE_FILTERS,
 ];
-
-/**
- * Available ESP firmware manifests
- */
-export const ESP_FIRMWARE_MANIFESTS: Record<string, ESPFirmwareManifest> = {
-	usb_bridge: {
-		label: "USB Bridge",
-		description: "The default firmware that comes pre-installed on the ZWA-2.",
-		manifestUrl: "https://firmware.esphome.io/ha-connect-zwa-2/zwave-esp-bridge/manifest.json",
-		changelogUrl: (version: string) => `https://github.com/NabuCasa/zwave-esp-bridge/releases/tag/${version}`,
-	},
-	esphome: {
-		label: "Portable Z-Wave",
-		description: "Allows connecting to ZWA-2 via WiFi",
-		manifestUrl: "https://firmware.esphome.io/ha-connect-zwa-2/home-assistant-zwa-2/manifest.json",
-		experimental: true,
-		wifi: true,
-	},
-};
-
-export interface ESPFirmwareManifest {
-	label: string;
-	description: string;
-	manifestUrl: string;
-	experimental?: boolean;
-	changelogUrl?: (version: string) => string;
-	wifi?: boolean;
-}
 
 export type InstallState =
 	| { status: "idle" }
@@ -99,69 +72,6 @@ export interface UpdateESPFirmwareLabels {
 }
 
 export type UpdateESPFirmwareWizardStepProps = WizardStepProps<UpdateESPFirmwareState, UpdateESPFirmwareLabels>;
-
-export async function flashESPFirmwareWithData(
-	serialPort: SerialPort,
-	firmwareData: Uint8Array,
-	firmwareOffset: number,
-	onProgress?: (progress: number) => void
-): Promise<void> {
-	if (!firmwareData?.length) {
-		throw new Error("Missing firmware data");
-	}
-
-	let transport: Transport | undefined;
-	try {
-		// Create transport for esptool-js
-		transport = new Transport(serialPort, true);
-		const loaderOptions: LoaderOptions = {
-			transport,
-			baudrate: 115200,
-			enableTracing: false,
-			debugLogging: false,
-		};
-		const esploader = new ESPLoader(loaderOptions);
-
-		// Close the serial port. ESPLoader expects to open it itself.
-		if (serialPort.readable || serialPort.writable) {
-			await serialPort.close();
-		}
-
-		// Connect to ESP
-		await esploader.main();
-
-		// Set progress callback
-		const progressCallback = (_fileIndex: number, written: number, total: number) => {
-			const progress = Math.round((written / total) * 100);
-			onProgress?.(progress);
-		};
-
-		// Flash firmware at the offset specified in the manifest
-		const flashOptions: FlashOptions = {
-			fileArray: [{
-				data: firmwareData,
-				address: firmwareOffset,
-			}],
-			flashSize: "keep",
-			flashMode: "keep",
-			flashFreq: "keep",
-			eraseAll: false,
-			compress: true,
-			reportProgress: progressCallback,
-		};
-
-		await esploader.writeFlash(flashOptions);
-
-		// Reset the ESP - this will trigger a restart but not disconnect yet
-		await esploader.after();
-	} catch (error) {
-		console.error("Failed to flash ESP firmware:", error);
-		throw error;
-	} finally {
-		await transport?.disconnect().catch(() => {});
-		// Note: We no longer disconnect here - the power-cycle substep will handle monitoring
-	}
-}
 
 export async function enterBootloaderMode(context: WizardContext<UpdateESPFirmwareState>): Promise<'success' | 'failed' | 'no-update-needed'> {
 	const serialPort = context.connectionState.status === 'connected' ? context.connectionState.port : null;

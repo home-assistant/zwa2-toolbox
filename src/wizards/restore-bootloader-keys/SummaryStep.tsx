@@ -1,5 +1,6 @@
 import { CheckCircleIcon } from '@heroicons/react/24/outline';
 import Alert from '../../components/Alert';
+import RepairFailedAlert from './RepairFailedAlert';
 import type { RestoreBootloaderKeysStepProps } from './wizard';
 
 export default function SummaryStep({ context }: RestoreBootloaderKeysStepProps) {
@@ -20,13 +21,10 @@ export default function SummaryStep({ context }: RestoreBootloaderKeysStepProps)
   if (restoreState.status === 'error') {
     return (
       <div className="py-8 space-y-4">
-        <Alert title="The repair did not finish" severity="error">
-          <p>{restoreState.errorMessage}</p>
-          <p className="mt-2">
-            Check that both wires are connected firmly. Then unplug the ZWA-2, plug it back
-            in and run this wizard again.
-          </p>
-        </Alert>
+        <RepairFailedAlert message={restoreState.errorMessage}>
+          Check that both wires are connected firmly. Then unplug the ZWA-2, plug it back in
+          and run this wizard again.
+        </RepairFailedAlert>
         {reinstallState.status !== 'success' && (
           <Alert title="The ZWA-2 still runs the repair tool" severity="error">
             <p>

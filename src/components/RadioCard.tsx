@@ -1,7 +1,6 @@
 import type { ReactNode } from 'react';
 
 interface RadioCardProps {
-  /** Shared across the cards of one group, so only one can be selected */
   name: string;
   selected: boolean;
   onSelect: () => void;

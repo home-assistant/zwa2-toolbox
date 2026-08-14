@@ -7,14 +7,14 @@
  * published in the Nabu Casa firmware repositories.
  *
  * The addresses come from `btl_security_tokens.h`. The word tables were read
- * back from a working ZWA-2 with a J-Link, which is what fixes the byte order.
+ * back from a working ZWA-2 with a J-Link, so their byte order is already right.
  */
 
 /** Signing key X and Y sit next to each other and form one 64-byte burst. */
 export const SIGN_SPAN_ADDR = 0x0807e34c;
 
 /**
- * The encryption key sits at 0x0807e286, which is only halfword-aligned. Its
+ * The encryption key sits at 0x0807e286 and is only halfword-aligned. Its
  * burst therefore widens to the word below and pads with 0xff on both sides.
  * Padding with 0xff clears no bits in the neighbouring cells.
  */
@@ -38,6 +38,11 @@ export const SIGN_SPAN_WORDS: readonly number[] = [
 export const ENC_SPAN_WORDS: readonly number[] = [
 	0x8f7fffff, 0xb37939e5, 0xfc56c51b, 0xf4af31b1, 0xffff1424,
 ];
+
+/** Erased flash returns 0xff on every byte */
+export function isBlank(data: Uint8Array): boolean {
+	return data.every((byte) => byte === 0xff);
+}
 
 function spanBytes(words: readonly number[]): Uint8Array {
 	const bytes = new Uint8Array(words.length * 4);

@@ -1,10 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react';
-import { LinkIcon, LinkSlashIcon } from '@heroicons/react/24/outline';
 import type { UpdateESPFirmwareWizardStepProps } from './wizard';
-import { flashESPFirmwareWithData } from './wizard';
-import CircularProgress from '../../components/CircularProgress';
+import { flashESPFirmwareWithData } from '../../lib/esp-flash';
+import Button from '../../components/Button';
+import ConnectPrompt from '../../components/ConnectPrompt';
 import ManualBootloaderInstructions from '../../components/ManualBootloaderInstructions';
-import Spinner from '../../components/Spinner';
+import StatusPanel from '../../components/StatusPanel';
 
 export default function InstallStep({ context }: UpdateESPFirmwareWizardStepProps) {
 	const { installState } = context.state;
@@ -129,28 +129,15 @@ export default function InstallStep({ context }: UpdateESPFirmwareWizardStepProp
 
 	// Show downloading spinner
 	if (installState.status === "downloading") {
-		return (
-			<div className="text-center py-8">
-				<Spinner className="mx-auto mb-4" />
-				<h3 className="text-lg font-medium text-primary mb-2">
-					Downloading {installState.firmwareLabel} firmware...
-				</h3>
-			</div>
-		);
+		return <StatusPanel title={`Downloading ${installState.firmwareLabel} firmware...`} />;
 	}
 
 	// Show entering bootloader spinner
 	if (installState.status === "entering-bootloader") {
 		return (
-			<div className="text-center py-8">
-				<Spinner className="mx-auto mb-4" />
-				<h3 className="text-lg font-medium text-primary mb-2">
-					Enter bootloader
-				</h3>
-				<p className="text-gray-600 dark:text-gray-300">
-					Putting ESP into bootloader mode...
-				</p>
-			</div>
+			<StatusPanel title="Enter bootloader">
+				<p>Putting ESP into bootloader mode...</p>
+			</StatusPanel>
 		);
 	}
 
@@ -160,40 +147,33 @@ export default function InstallStep({ context }: UpdateESPFirmwareWizardStepProp
 		const { bootloaderEntryFailed } = installState;
 
 		return (
-			<div className="flex flex-col items-center py-8 space-y-6">
-				<div className={`${connectedToESP32 ? 'text-green-600 dark:text-green-400' : 'text-gray-400 dark:text-gray-600'}`}>
-					{connectedToESP32 ? (
-						<LinkIcon className="w-16 h-16" />
-					) : (
-						<LinkSlashIcon className="w-16 h-16" />
-					)}
-				</div>
-				<div className="text-center">
-					<h3 className="text-lg font-medium text-primary mb-2">
-						{connectedToESP32 ? 'ESP32 Connected' : 'Connect to ESP32 Bootloader'}
-					</h3>
-					<p className="text-gray-600 dark:text-gray-300">
-						{connectedToESP32
-							? 'Successfully connected to the ESP32 bootloader.'
-							: bootloaderEntryFailed
-								? <>Could not enter the bootloader automatically.<br />You can follow the instructions below to enter bootloader mode manually, then try again.</>
-								: <>Bootloader mode activated. Now select the ESP32 serial port to continue with the firmware update.</>
-						}
-					</p>
-					<p className="text-gray-600 dark:text-gray-300">
-						The device is usually called "{context.labels.espVariant}" or "USB JTAG/serial debug unit".
-					</p>
-				</div>
-
+			<ConnectPrompt
+				connected={connectedToESP32}
+				title={connectedToESP32 ? 'ESP32 Connected' : 'Connect to ESP32 Bootloader'}
+				description={
+					<>
+						<p>
+							{connectedToESP32
+								? 'Successfully connected to the ESP32 bootloader.'
+								: bootloaderEntryFailed
+									? <>Could not enter the bootloader automatically.<br />You can follow the instructions below to enter bootloader mode manually, then try again.</>
+									: <>Bootloader mode activated. Now select the ESP32 serial port to continue with the firmware update.</>
+							}
+						</p>
+						<p>
+							The device is usually called "{context.labels.espVariant}" or "USB JTAG/serial debug unit".
+						</p>
+					</>
+				}
+			>
 				{!connectedToESP32 && (
 					<>
-						<button
+						<Button
 							onClick={handleESP32Connect}
 							disabled={context.connectionState.status === 'connecting'}
-							className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-400"
 						>
 							{context.connectionState.status === 'connecting' ? 'Connecting...' : 'Select ESP32 Port'}
-						</button>
+						</Button>
 
 						{bootloaderEntryFailed && (
 							<ManualBootloaderInstructions deviceName={context.labels.deviceName} />
@@ -202,44 +182,29 @@ export default function InstallStep({ context }: UpdateESPFirmwareWizardStepProp
 				)}
 
 				{connectedToESP32 && context.onDisconnect && (
-					<button
-						onClick={context.onDisconnect}
-						className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-primary shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
-					>
+					<Button variant="secondary" onClick={context.onDisconnect}>
 						Connect different device
-					</button>
+					</Button>
 				)}
-			</div>
+			</ConnectPrompt>
 		);
 	}
 
 	// Show circular progress during installation
 	if (installState.status === "installing") {
 		return (
-			<div className="text-center py-8">
-				<CircularProgress progress={installState.progress} className="mb-4" />
-				<h3 className="text-lg font-medium text-primary mb-2">
-					Install firmware
-				</h3>
-				<p className="text-gray-600 dark:text-gray-300">
-					Installing {installState.firmwareLabel}...
-				</p>
-			</div>
+			<StatusPanel progress={installState.progress} title="Install firmware">
+				<p>Installing {installState.firmwareLabel}...</p>
+			</StatusPanel>
 		);
 	}
 
 	// Show waiting for power cycle
 	if (installState.status === "waiting-for-power-cycle") {
 		return (
-			<div className="text-center py-8">
-				<Spinner className="mx-auto mb-4" />
-				<h3 className="text-lg font-medium text-primary mb-2">
-					Firmware installed successfully
-				</h3>
-				<p className="text-gray-600 dark:text-gray-300">
-					Please power cycle your {context.labels.deviceName} to activate the new firmware.
-				</p>
-		</div>
+			<StatusPanel title="Firmware installed successfully">
+				<p>Please power cycle your {context.labels.deviceName} to activate the new firmware.</p>
+			</StatusPanel>
 		);
 	}
 

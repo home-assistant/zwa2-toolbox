@@ -6,8 +6,6 @@ import { resolve } from "path";
 export default defineConfig({
 	plugins: [react()],
 	base: "/zwa2-toolbox/",
-	// The vendored SWD debugger firmware is imported with ?url
-	assetsInclude: ["**/*.bin"],
 	css: {
 		postcss: "./postcss.config.cjs",
 	},

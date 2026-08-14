@@ -6,18 +6,16 @@ import RestoreStep from "./RestoreStep";
 import ReinstallStep from "./ReinstallStep";
 import SummaryStep from "./SummaryStep";
 import type { WizardConfig, WizardContext, WizardStepProps } from "../../components/Wizard";
+import { getErrorMessage } from "@zwave-js/shared";
 import { enterESPBootloader } from "../../lib/esp-utils";
-import { openSerialPort } from "../../lib/zwave";
+import { flashESPFirmwareWithData } from "../../lib/esp-flash";
 import {
 	ESP_FIRMWARE_MANIFESTS,
-	flashESPFirmwareWithData,
-} from "../update-esp-firmware/wizard";
-import {
-	SWDConsole,
-	SWDConsoleError,
-	bytesEqual,
-	isBlank,
-} from "../../lib/swd-console";
+	downloadFirmware,
+	fetchManifestFirmwareInfo,
+} from "../../lib/esp-firmware-download";
+import { openSerialPort } from "../../lib/zwave";
+import { SWDConsole } from "../../lib/swd-console";
 import {
 	ENC_SPAN_ADDR,
 	ENC_SPAN_WORDS,
@@ -26,6 +24,7 @@ import {
 	EXPECTED_SIGN_Y,
 	SIGN_SPAN_ADDR,
 	SIGN_SPAN_WORDS,
+	isBlank,
 } from "../../lib/zg23-tokens";
 import swdFirmwareUrl from "../../assets/zwa2-esp-swd-debugger_0.1.0-merged.bin?url";
 
@@ -74,12 +73,22 @@ export type RestoreBootloaderKeysStepProps =
 
 type Context = WizardContext<RestoreBootloaderKeysState>;
 
-async function loadDebuggerFirmware(): Promise<Uint8Array> {
-	const response = await fetch(swdFirmwareUrl);
-	if (!response.ok) {
-		throw new Error(`Failed to load the repair firmware (HTTP ${response.status})`);
-	}
-	return new Uint8Array(await response.arrayBuffer());
+/** `debuggerFirmware` caches the 316 KB image so a retry after a failed flash reuses it */
+let debuggerFirmware: Promise<Uint8Array> | undefined;
+
+function loadDebuggerFirmware(): Promise<Uint8Array> {
+	debuggerFirmware ??= downloadFirmware(swdFirmwareUrl).catch((error) => {
+		debuggerFirmware = undefined;
+		throw error;
+	});
+	return debuggerFirmware;
+}
+
+/** Returns the port the wizard currently holds, or null while the device is unplugged */
+export function connectedPort(context: Context): SerialPort | null {
+	return context.connectionState.status === "connected"
+		? context.connectionState.port
+		: null;
 }
 
 async function handleCheckStepEntry(context: Context): Promise<void> {
@@ -113,10 +122,10 @@ async function handleRestoreStepEntry(context: Context): Promise<void> {
 
 	// Destroy the Driver the check step started. It holds the port's streams,
 	// and a port whose streams are locked cannot be closed.
-	await context.zwaveBinding?.cleanupDriver();
+	await context.zwaveBinding?.disconnect();
 
-	// Preparing the ZWA-2 usually means unplugging it, which kills the port from
-	// the connect step. A device that is still attached can be reused, which
+	// Preparing the ZWA-2 usually means unplugging it, so the port from the
+	// connect step is dead. A device that is still attached can be reused, which
 	// saves the user a trip through the port picker.
 	const connection =
 		context.connectionState.status === "connected"
@@ -146,8 +155,8 @@ export async function enterBootloaderForRepair(
 	serialPort: SerialPort,
 	deviceType: "zwa2" | "esp32",
 ): Promise<void> {
-	// An ESP that already sits in its ROM bootloader, or still runs the repair
-	// tool from an earlier attempt, takes the firmware straight away.
+	// An ESP already in its ROM bootloader takes the firmware straight away. So
+	// does one still running the repair tool from an earlier attempt.
 	if (deviceType === "esp32") {
 		await flashDebuggerFirmware(context, serialPort);
 		return;
@@ -197,8 +206,7 @@ export async function flashDebuggerFirmware(
 		);
 
 		// The debugger firmware serves its console over USB-Serial-JTAG, and that
-		// peripheral only comes up cleanly after a power cycle. The step waits
-		// for the unplug before asking for the port again.
+		// peripheral only comes up cleanly after a power cycle.
 		context.setState((prev) => ({
 			...prev,
 			restoreState: { status: "waiting-for-power-cycle" },
@@ -208,7 +216,7 @@ export async function flashDebuggerFirmware(
 			...prev,
 			restoreState: {
 				status: "error",
-				errorMessage: describeError(error),
+				errorMessage: getErrorMessage(error),
 				retryFrom: "flash",
 			},
 		}));
@@ -246,14 +254,16 @@ export async function restoreKeys(
 		}
 
 		context.setState((prev) => ({ ...prev, restoreState: { status: "verifying" } }));
-		const after = await swd.readTokens();
+		const after =
+			signingBlank || encryptionBlank ? await swd.readTokens() : before;
 		if (
-			!bytesEqual(after.signX, EXPECTED_SIGN_X) ||
-			!bytesEqual(after.signY, EXPECTED_SIGN_Y) ||
-			!bytesEqual(after.enc, EXPECTED_ENC)
+			!after.signX.equals(EXPECTED_SIGN_X) ||
+			!after.signY.equals(EXPECTED_SIGN_Y) ||
+			!after.enc.equals(EXPECTED_ENC)
 		) {
+			console.error("Keys do not match after writing:", after);
 			throw new Error(
-				"The keys on the device do not match after writing them.",
+				"The keys on the Z-Wave chip do not match after writing them.",
 			);
 		}
 
@@ -267,7 +277,7 @@ export async function restoreKeys(
 			...prev,
 			restoreState: {
 				status: "error",
-				errorMessage: describeError(error),
+				errorMessage: getErrorMessage(error),
 				retryFrom: "probe",
 			},
 		}));
@@ -277,19 +287,9 @@ export async function restoreKeys(
 }
 
 async function handleReinstallNavigation(context: Context): Promise<boolean> {
-	const { reinstallState, selectedManifestId } = context.state;
-	if (reinstallState.status === "success") return true;
-	if (
-		reinstallState.status === "downloading" ||
-		reinstallState.status === "installing"
-	) {
-		return false;
-	}
+	const { selectedManifestId } = context.state;
 
-	const serialPort =
-		context.connectionState.status === "connected"
-			? context.connectionState.port
-			: null;
+	const serialPort = connectedPort(context);
 	if (!serialPort) {
 		context.setState((prev) => ({
 			...prev,
@@ -309,9 +309,6 @@ async function handleReinstallNavigation(context: Context): Promise<boolean> {
 		}));
 
 		const manifest = ESP_FIRMWARE_MANIFESTS[selectedManifestId];
-		const { fetchManifestFirmwareInfo, downloadFirmware } = await import(
-			"../../lib/esp-firmware-download"
-		);
 		const info = await fetchManifestFirmwareInfo(
 			manifest.manifestUrl,
 			manifest.changelogUrl,
@@ -324,7 +321,7 @@ async function handleReinstallNavigation(context: Context): Promise<boolean> {
 		}));
 
 		// The debugger firmware runs on USB-Serial-JTAG. Its PID makes esptool-js
-		// pick a reset sequence that works without the baud knock.
+		// pick a reset sequence that works without the magic baudrate sequence.
 		await flashESPFirmwareWithData(
 			serialPort,
 			firmwareData,
@@ -337,8 +334,7 @@ async function handleReinstallNavigation(context: Context): Promise<boolean> {
 			},
 		);
 
-		// The new firmware only takes over after a power cycle. The step waits
-		// for the unplug before finishing.
+		// The new firmware only takes over after a power cycle.
 		context.setState((prev) => ({
 			...prev,
 			reinstallState: { status: "waiting-for-power-cycle" },
@@ -346,22 +342,12 @@ async function handleReinstallNavigation(context: Context): Promise<boolean> {
 	} catch (error) {
 		context.setState((prev) => ({
 			...prev,
-			reinstallState: { status: "error", errorMessage: describeError(error) },
+			reinstallState: { status: "error", errorMessage: getErrorMessage(error) },
 		}));
 		context.goToStep("Summary");
 	}
 
 	return false;
-}
-
-function describeError(error: unknown): string {
-	if (error instanceof SWDConsoleError) {
-		if (error.kind === "connect-failed" || error.kind === "timeout") {
-			return `${error.message} Check that both wires are connected firmly and try again.`;
-		}
-		return error.message;
-	}
-	return error instanceof Error ? error.message : String(error);
 }
 
 function isBusy(context: Context): boolean {

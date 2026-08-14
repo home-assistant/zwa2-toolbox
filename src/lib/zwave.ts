@@ -25,6 +25,7 @@ import {
 	type FirmwareFileFormat,
 } from "zwave-js";
 import { resetZWaveChipViaCommandMode } from "./esp-utils";
+import { isBlank } from "./zg23-tokens";
 import { NodeIDType, NodeType } from "@zwave-js/core/definitions";
 import type { FirmwareType } from "./firmware-download";
 
@@ -35,22 +36,11 @@ import type { FirmwareType } from "./firmware-download";
  */
 export const OTW_ERROR_BLANK_ENCRYPTION_KEY = 0x44;
 
-export const BLANK_BOOTLOADER_KEYS_MESSAGE =
-	'The bootloader keys on this ZWA-2 are missing, so firmware updates cannot succeed. Use the "Restore bootloader keys" tool to repair it.';
-
-export const LIKELY_BLANK_BOOTLOADER_KEYS_MESSAGE =
-	'The update was rejected, which means the bootloader keys on this ZWA-2 are likely missing. Use the "Restore bootloader keys" tool to repair it.';
-
-export interface FlashFirmwareFailure {
-	success: false;
-	/** `status` is undefined when the update never reached the bootloader */
-	status?: OTWFirmwareUpdateStatus;
-	/** `errorCode` is the raw bootloader error code, 0x44 for a blank encryption key */
+export interface FlashFirmwareResult {
+	success: boolean;
+	/** `errorCode` is the raw bootloader error code, undefined unless the bootloader rejected the image */
 	errorCode?: number;
-	message: string;
 }
-
-export type FlashFirmwareResult = { success: true } | FlashFirmwareFailure;
 
 export interface ZWaveBindingInitOptions {
 	/** Skip controller identification during driver startup. Useful for recovery when the chip firmware may be partially functional. */
@@ -261,10 +251,10 @@ export class ZWaveBinding {
 	): Promise<FlashFirmwareResult> {
 		const fail = (
 			message: string,
-			details?: Pick<FlashFirmwareFailure, "status" | "errorCode">,
+			errorCode?: number,
 		): FlashFirmwareResult => {
 			this.onError?.(message);
-			return { success: false, message, ...details };
+			return { success: false, errorCode };
 		};
 
 		if (!this.driver) {
@@ -306,7 +296,7 @@ export class ZWaveBinding {
 						OTWFirmwareUpdateStatus,
 						result.status,
 					)}`,
-					{ status: result.status, errorCode: result.errorCode },
+					result.errorCode,
 				);
 			}
 			return { success: true };
@@ -326,8 +316,8 @@ export class ZWaveBinding {
 	 * carries the flash contents that follow the NVM. The requested length has
 	 * to stay 1.
 	 *
-	 * The NVM ends where the lockbits page begins, so offset `size + X` reads
-	 * flash address `0x0807E000 + X` and returns `(-X) mod 256` bytes:
+	 * The NVM ends where the lockbits page begins. Offset `size + X` therefore
+	 * reads flash address `0x0807E000 + X` and returns `(-X) mod 256` bytes:
 	 *
 	 *   size + 0x286 -> 0x0807E286, 0x7a bytes. The first 16 are
 	 *                   MFG_SECURE_BOOTLOADER_KEY.
@@ -335,12 +325,12 @@ export class ZWaveBinding {
 	 *                   MFG_SIGNED_BOOTLOADER_KEY_X. The next 32 are all of
 	 *                   MFG_SIGNED_BOOTLOADER_KEY_Y at 0x0807E36C.
 	 *
-	 * MFG_SIGNED_BOOTLOADER_KEY_X starts at 0x0807E34C. Probing from there would
-	 * expand to 180 bytes and overflow the controller's 168-byte TX buffer. The
-	 * probe therefore starts 20 bytes into the key.
+	 * The probe starts 20 bytes into MFG_SIGNED_BOOTLOADER_KEY_X. Starting at its
+	 * real address 0x0807E34C would expand to 180 bytes and overflow the
+	 * controller's 168-byte TX buffer.
 	 *
-	 * Returns `null` when the device could not be checked. That is not the same
-	 * as the keys being intact.
+	 * Returns `null` when the device could not be checked. Callers must treat
+	 * that as unknown.
 	 */
 	async checkBootloaderKeys(): Promise<boolean | null> {
 		// The probe is a Serial API command and needs the controller firmware
@@ -374,17 +364,10 @@ export class ZWaveBinding {
 					return null;
 				}
 
-				const isBlank = (data: BytesView) =>
-					data.every((byte) => byte === 0xff);
-
-				const encryptionKeyBlank = isBlank(
-					encryptionProbe.buffer.subarray(0, 16),
+				return (
+					isBlank(encryptionProbe.buffer.subarray(0, 16)) ||
+					isBlank(signingProbe.buffer.subarray(0, 44))
 				);
-				const signingKeyBlank =
-					isBlank(signingProbe.buffer.subarray(0, 12)) &&
-					isBlank(signingProbe.buffer.subarray(12, 44));
-
-				return encryptionKeyBlank || signingKeyBlank;
 			} finally {
 				await controller.externalNVMCloseExt();
 			}
@@ -493,7 +476,7 @@ export class ZWaveBinding {
 	 * Destroys the current Driver (if any) and gives the serial port time to
 	 * settle before further operations.
 	 */
-	async cleanupDriver(): Promise<void> {
+	private async cleanupDriver(): Promise<void> {
 		if (this.driver) {
 			this.driver.removeAllListeners();
 			await this.driver.destroy().catch(() => {});
@@ -770,9 +753,9 @@ export const ZWA2_DEVICE_FILTERS: DeviceFilters[] = [
 /**
  * Opens a port at the rate the ZWA-2 uses.
  *
- * The user can pick a port that an earlier step left open, which makes a plain
- * `open` throw. Closing it first only works once whatever held its streams has
- * released them, so a failed close leaves the existing connection in place.
+ * The user can pick a port an earlier step left open, so a plain `open` throws.
+ * A close only succeeds once whatever held the streams has released them. A
+ * failed close therefore leaves the existing connection in place.
  */
 export async function openSerialPort(port: SerialPort): Promise<void> {
 	if (port.readable || port.writable) {

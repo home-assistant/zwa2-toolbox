@@ -1,19 +1,12 @@
 import Alert from '../../components/Alert';
-import Spinner from '../../components/Spinner';
+import StatusPanel from '../../components/StatusPanel';
 import type { RestoreBootloaderKeysStepProps } from './wizard';
 
 export default function CheckStep({ context }: RestoreBootloaderKeysStepProps) {
   const { checkState } = context.state;
 
   if (checkState.status !== 'done') {
-    return (
-      <div className="text-center py-8">
-        <Spinner className="mx-auto mb-4" />
-        <h3 className="text-lg font-medium text-primary mb-2">
-          Checking your ZWA-2
-        </h3>
-      </div>
-    );
+    return <StatusPanel title="Checking your ZWA-2" />;
   }
 
   if (checkState.keysBlank === true) {

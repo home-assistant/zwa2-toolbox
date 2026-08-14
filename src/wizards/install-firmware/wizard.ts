@@ -14,15 +14,17 @@ import {
 	type FirmwareType,
 } from "../../lib/firmware-download";
 import { DriverMode } from "zwave-js";
-import {
-	BLANK_BOOTLOADER_KEYS_MESSAGE,
-	LIKELY_BLANK_BOOTLOADER_KEYS_MESSAGE,
-	OTW_ERROR_BLANK_ENCRYPTION_KEY,
-} from "../../lib/zwave";
+import { OTW_ERROR_BLANK_ENCRYPTION_KEY } from "../../lib/zwave";
 import { applyRepeaterRegion } from "../../lib/regions";
 import { type BytesView } from "@zwave-js/shared";
 
 export type { FirmwareType } from "../../lib/firmware-download";
+
+const BLANK_BOOTLOADER_KEYS_MESSAGE =
+	'The bootloader keys on this ZWA-2 are missing, so firmware updates cannot succeed. Use the "Restore bootloader keys" tool to repair it.';
+
+const LIKELY_BLANK_BOOTLOADER_KEYS_MESSAGE =
+	'The update was rejected, which means the bootloader keys on this ZWA-2 are likely missing. Use the "Restore bootloader keys" tool to repair it.';
 
 export type FirmwareOption =
 	| { type: "latest-controller" }
@@ -113,8 +115,8 @@ async function handleFileSelectStepEntry(
 		}
 	}
 
-	// Blank bootloader keys make the update abort in the bootloader.
-	// Downloading and flashing would gain nothing.
+	// Blank bootloader keys make the update abort in the bootloader, so skip the
+	// download and the flash.
 	if (keysBlank) {
 		context.setState((prev) => ({
 			...prev,
