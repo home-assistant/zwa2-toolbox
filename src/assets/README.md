@@ -1,14 +1,5 @@
 # Vendored assets
 
-## `zwa2-swd-wiring.jpg`
-
-Shows the two jumper wires the "Restore bootloader keys" wizard asks for, running
-from the ESP GPIO pins to the SWD interface.
-
-957x574, cropped to the two headers. Crop a replacement the same way rather than
-downscaling the whole board: the pin labels stop being legible otherwise. The
-wizard renders it at most 576 px wide.
-
 ## `zwa2-esp-swd-debugger_0.1.0-merged.bin`
 
 The SWD debugger firmware for the ZWA-2's ESP32-S3, used by the "Restore
