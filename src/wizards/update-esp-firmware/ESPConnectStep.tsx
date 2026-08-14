@@ -12,16 +12,6 @@ export default function ESPConnectStep({ context }: UpdateESPFirmwareWizardStepP
   // Track previous serialPort value
   const prevSerialPort = useRef<SerialPort | null>(serialPort);
 
-  // Custom request function that uses combined filters
-  const requestCombinedSerialPort = async (): Promise<void> => {
-    if (context.requestCombinedSerialPort) {
-      await context.requestCombinedSerialPort();
-    } else {
-      // Fallback to ZWA-2 connection if combined request is not available
-      await context.requestZWA2SerialPort();
-    }
-  };
-
   useEffect(() => {
     // Only trigger when serialPort transitions from null to non-null
     if (!prevSerialPort.current && serialPort) {
@@ -50,7 +40,7 @@ export default function ESPConnectStep({ context }: UpdateESPFirmwareWizardStepP
       </p>
       {!isConnected && (
         <button
-          onClick={requestCombinedSerialPort}
+          onClick={() => context.requestCombinedSerialPort()}
           disabled={context.connectionState.status === 'connecting'}
           className="rounded-md bg-blue-600 px-3 py-2 text-sm font-semibold text-white shadow-xs hover:bg-blue-500 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-blue-600 disabled:opacity-50 disabled:cursor-not-allowed dark:bg-blue-500 dark:hover:bg-blue-400"
         >
@@ -61,7 +51,7 @@ export default function ESPConnectStep({ context }: UpdateESPFirmwareWizardStepP
         <button
           onClick={() => {
             context.onDisconnect?.();
-            requestCombinedSerialPort();
+            context.requestCombinedSerialPort();
           }}
           className="rounded-md bg-white px-3 py-2 text-sm font-semibold text-primary shadow-xs inset-ring inset-ring-gray-300 hover:bg-gray-50 dark:bg-white/10 dark:shadow-none dark:inset-ring-white/5 dark:hover:bg-white/20"
         >

@@ -8,6 +8,7 @@ import {
 // import { updateFirmwareWizardConfig } from './update-firmware';
 // import { eraseNVMWizardConfig } from './erase-nvm';
 import { recoverAdapterWizardConfig } from "./recover-adapter";
+import { restoreBootloaderKeysWizardConfig } from "./restore-bootloader-keys";
 
 export const wizards = [
 	installFirmwareWizardConfig,
@@ -15,6 +16,7 @@ export const wizards = [
 	configureWizardConfig,
 	//   updateFirmwareWizardConfig,
 	recoverAdapterWizardConfig,
+	restoreBootloaderKeysWizardConfig,
 	// updateESPBridgeWizardConfig,
 	// updateESPHomeWizardConfig,
 	//   eraseNVMWizardConfig,

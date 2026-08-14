@@ -14,10 +14,17 @@ import {
 	type FirmwareType,
 } from "../../lib/firmware-download";
 import { DriverMode } from "zwave-js";
+import { OTW_ERROR_BLANK_ENCRYPTION_KEY } from "../../lib/zwave";
 import { applyRepeaterRegion } from "../../lib/regions";
 import { type BytesView } from "@zwave-js/shared";
 
 export type { FirmwareType } from "../../lib/firmware-download";
+
+const BLANK_BOOTLOADER_KEYS_MESSAGE =
+	'The bootloader keys on this ZWA-2 are missing, so firmware updates cannot succeed. Use the "Restore bootloader keys" tool to repair it.';
+
+const LIKELY_BLANK_BOOTLOADER_KEYS_MESSAGE =
+	'The update was rejected, which means the bootloader keys on this ZWA-2 are likely missing. Use the "Restore bootloader keys" tool to repair it.';
 
 export type FirmwareOption =
 	| { type: "latest-controller" }
@@ -94,6 +101,7 @@ async function handleFileSelectStepEntry(
 	context.setState((prev) => ({ ...prev, detectionState: "detecting" }));
 
 	let detected: FirmwareType | null = null;
+	let keysBlank: boolean | null = null;
 	if (context.zwaveBinding) {
 		try {
 			const result =
@@ -102,6 +110,23 @@ async function handleFileSelectStepEntry(
 		} catch {
 			// Detection failed, leave as null
 		}
+		if (detected === "controller") {
+			keysBlank = await context.zwaveBinding.checkBootloaderKeys();
+		}
+	}
+
+	// Blank bootloader keys make the update abort in the bootloader, so skip the
+	// download and the flash.
+	if (keysBlank) {
+		context.setState((prev) => ({
+			...prev,
+			detectedFirmwareType: detected,
+			detectionState: "done",
+			flashResult: "error",
+			errorMessage: BLANK_BOOTLOADER_KEYS_MESSAGE,
+		}));
+		context.goToStep("Summary");
+		return;
 	}
 
 	// Capture initial-state fields before the async setState call.
@@ -296,18 +321,21 @@ async function handleInstallStepEntry(
 		}
 
 		// Flash the firmware (already in bootloader, stays in bootloader after)
-		const success = await context.zwaveBinding.flashFirmware(
+		const flashed = await context.zwaveBinding.flashFirmware(
 			fileName,
 			firmwareData,
 		);
 
-		if (!success) {
+		if (!flashed.success) {
 			context.setState((prev) => ({
 				...prev,
 				isFlashing: false,
 				progress: 0,
 				flashResult: "error",
-				errorMessage: "Failed to install firmware",
+				errorMessage:
+					flashed.errorCode === OTW_ERROR_BLANK_ENCRYPTION_KEY
+						? LIKELY_BLANK_BOOTLOADER_KEYS_MESSAGE
+						: "Failed to install firmware",
 			}));
 			context.goToStep("Summary");
 			return;

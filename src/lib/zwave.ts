@@ -4,6 +4,7 @@ import { createWebSerialPortFactory } from "@zwave-js/bindings-browser/serial";
 import { log as createLogContainer } from "@zwave-js/core/bindings/log/browser";
 import {
 	BootloaderChunkType,
+	FunctionType,
 	type ZWaveSerialBindingFactory,
 } from "@zwave-js/serial";
 import { Bytes, type BytesView, getErrorMessage } from "@zwave-js/shared";
@@ -24,8 +25,22 @@ import {
 	type FirmwareFileFormat,
 } from "zwave-js";
 import { resetZWaveChipViaCommandMode } from "./esp-utils";
+import { isBlank } from "./zg23-tokens";
 import { NodeIDType, NodeType } from "@zwave-js/core/definitions";
 import type { FirmwareType } from "./firmware-download";
+
+/**
+ * `OTW_ERROR_BLANK_ENCRYPTION_KEY` is what the bootloader reports for an image
+ * it could not parse after decrypting. A blank encryption key token produces
+ * exactly that.
+ */
+export const OTW_ERROR_BLANK_ENCRYPTION_KEY = 0x44;
+
+export interface FlashFirmwareResult {
+	success: boolean;
+	/** `errorCode` is the raw bootloader error code, undefined unless the bootloader rejected the image */
+	errorCode?: number;
+}
 
 export interface ZWaveBindingInitOptions {
 	/** Skip controller identification during driver startup. Useful for recovery when the chip firmware may be partially functional. */
@@ -117,7 +132,7 @@ export class ZWaveBinding {
 		}
 
 		// Recreate serial binding after command mode operations
-		await this.port.open({ baudRate: 115200 });
+		await openSerialPort(this.port);
 
 		// Wait 500ms and check if bootloader was entered
 		await wait(500);
@@ -233,10 +248,17 @@ export class ZWaveBinding {
 	async flashFirmware(
 		fileName: string,
 		firmwareData: BytesView,
-	): Promise<boolean> {
+	): Promise<FlashFirmwareResult> {
+		const fail = (
+			message: string,
+			errorCode?: number,
+		): FlashFirmwareResult => {
+			this.onError?.(message);
+			return { success: false, errorCode };
+		};
+
 		if (!this.driver) {
-			this.onError?.("Driver not initialized");
-			return false;
+			return fail("Driver not initialized");
 		}
 
 		try {
@@ -246,10 +268,9 @@ export class ZWaveBinding {
 			if (fileName.toLowerCase().endsWith(".zip")) {
 				const unzippedFirmware = tryUnzipFirmwareFile(firmwareData);
 				if (!unzippedFirmware) {
-					this.onError?.(
+					return fail(
 						"Could not extract a valid firmware file from the ZIP archive.",
 					);
-					return false;
 				}
 				firmwareData = unzippedFirmware.rawData;
 				format = unzippedFirmware.format;
@@ -263,25 +284,96 @@ export class ZWaveBinding {
 			if (this.driver.mode !== DriverMode.Bootloader) {
 				const success = await this.resetToBootloader();
 				if (!success) {
-					this.onError?.("Failed to reset to bootloader");
-					return false;
+					return fail("Failed to reset to bootloader");
 				}
 			}
 
 			const result = await this.driver.firmwareUpdateOTW(firmware.data);
 
 			if (!result.success) {
-				this.onError?.(
+				return fail(
 					`Failed to flash firmware: ${getEnumMemberName(
 						OTWFirmwareUpdateStatus,
 						result.status,
 					)}`,
+					result.errorCode,
 				);
 			}
-			return result.success;
+			return { success: true };
 		} catch (e) {
-			this.onError?.(`Failed to flash firmware: ${getErrorMessage(e)}`);
-			return false;
+			return fail(`Failed to flash firmware: ${getErrorMessage(e)}`);
+		}
+	}
+
+	/**
+	 * Reports whether the ZG23's bootloader key tokens have been erased. A blank
+	 * encryption key makes every OTW update abort with error 0x44.
+	 *
+	 * No Serial API command reads those tokens. This exploits a bounds bug in the
+	 * controller firmware instead. The firmware derives the response length from
+	 * `nvmSize - offset` and truncates it to uint8_t. An offset past the end of
+	 * the NVM therefore wraps to a large positive length. The response then
+	 * carries the flash contents that follow the NVM. The requested length has
+	 * to stay 1.
+	 *
+	 * The NVM ends where the lockbits page begins. Offset `size + X` therefore
+	 * reads flash address `0x0807E000 + X` and returns `(-X) mod 256` bytes:
+	 *
+	 *   size + 0x286 -> 0x0807E286, 0x7a bytes. The first 16 are
+	 *                   MFG_SECURE_BOOTLOADER_KEY.
+	 *   size + 0x360 -> 0x0807E360, 0xa0 bytes. The first 12 are the tail of
+	 *                   MFG_SIGNED_BOOTLOADER_KEY_X. The next 32 are all of
+	 *                   MFG_SIGNED_BOOTLOADER_KEY_Y at 0x0807E36C.
+	 *
+	 * The probe starts 20 bytes into MFG_SIGNED_BOOTLOADER_KEY_X. Starting at its
+	 * real address 0x0807E34C would expand to 180 bytes and overflow the
+	 * controller's 168-byte TX buffer.
+	 *
+	 * Returns `null` when the device could not be checked. Callers must treat
+	 * that as unknown.
+	 */
+	async checkBootloaderKeys(): Promise<boolean | null> {
+		// The probe is a Serial API command and needs the controller firmware
+		// running. Repeater and Zniffer firmware cannot be checked.
+		if (this.driver?.mode !== DriverMode.SerialAPI) return null;
+
+		try {
+			const controller = this.driver.controller;
+			if (
+				!controller.supportedFunctionTypes?.includes(
+					FunctionType.ExtendedNVMOperations,
+				)
+			) {
+				return null;
+			}
+
+			const { size } = await controller.externalNVMOpenExt();
+			try {
+				const encryptionProbe = await controller.externalNVMReadBufferExt(
+					size + 0x286,
+					1,
+				);
+				const signingProbe = await controller.externalNVMReadBufferExt(
+					size + 0x360,
+					1,
+				);
+				if (
+					encryptionProbe.buffer.length !== 0x7a ||
+					signingProbe.buffer.length !== 0xa0
+				) {
+					return null;
+				}
+
+				return (
+					isBlank(encryptionProbe.buffer.subarray(0, 16)) ||
+					isBlank(signingProbe.buffer.subarray(0, 44))
+				);
+			} finally {
+				await controller.externalNVMCloseExt();
+			}
+		} catch (e) {
+			console.error("Failed to check bootloader keys:", getErrorMessage(e));
+			return null;
 		}
 	}
 
@@ -640,10 +732,7 @@ export class ZWaveBinding {
 	}
 
 	async disconnect(): Promise<void> {
-		if (this.driver) {
-			this.driver.removeAllListeners();
-			await this.driver.destroy().catch(() => {});
-		}
+		await this.cleanupDriver();
 	}
 }
 
@@ -661,6 +750,25 @@ export const ZWA2_DEVICE_FILTERS: DeviceFilters[] = [
 	{ usbVendorId: 0x303a, usbProductId: 0x4001 },
 ];
 
+/**
+ * Opens a port at the rate the ZWA-2 uses.
+ *
+ * The user can pick a port an earlier step left open, so a plain `open` throws.
+ * A close only succeeds once whatever held the streams has released them. A
+ * failed close therefore leaves the existing connection in place.
+ */
+export async function openSerialPort(port: SerialPort): Promise<void> {
+	if (port.readable || port.writable) {
+		try {
+			await port.close();
+		} catch (e) {
+			console.warn("Reusing a port that is still open:", getErrorMessage(e));
+			return;
+		}
+	}
+	await port.open({ baudRate: 115200 });
+}
+
 // Helper class for requesting and managing SerialPort connection
 export class ZWavePortManager {
 	static async requestPort(): Promise<SerialPort | null> {
@@ -668,7 +776,7 @@ export class ZWavePortManager {
 			const port = await navigator.serial.requestPort({
 				filters: ZWA2_DEVICE_FILTERS,
 			});
-			await port.open({ baudRate: 115200 });
+			await openSerialPort(port);
 			return port;
 		} catch (e) {
 			console.error("Failed to connect to device:", e);

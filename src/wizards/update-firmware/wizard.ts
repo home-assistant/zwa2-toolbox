@@ -56,8 +56,8 @@ async function handleUpdateNavigation(
 		// Extract firmware from file
 		const { fileName, data } = await openFirmwareFile(selectedFile);
 
-		const success = await context.zwaveBinding.flashFirmware(fileName, data);
-		if (success) {
+		const flashed = await context.zwaveBinding.flashFirmware(fileName, data);
+		if (flashed.success) {
 			context.setState((prev) => ({
 				...prev,
 				isFlashing: false,

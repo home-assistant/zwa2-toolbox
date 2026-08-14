@@ -26,6 +26,35 @@ export interface ESPFirmwareReleaseInfo {
 	offset: number;
 }
 
+export interface ESPFirmwareManifest {
+	label: string;
+	description: string;
+	manifestUrl: string;
+	experimental?: boolean;
+	changelogUrl?: (version: string) => string;
+	wifi?: boolean;
+}
+
+/**
+ * The ESP firmwares the toolbox can install, keyed by the id the wizards store
+ * in their state.
+ */
+export const ESP_FIRMWARE_MANIFESTS: Record<string, ESPFirmwareManifest> = {
+	usb_bridge: {
+		label: "USB Bridge",
+		description: "The default firmware that comes pre-installed on the ZWA-2.",
+		manifestUrl: "https://firmware.esphome.io/ha-connect-zwa-2/zwave-esp-bridge/manifest.json",
+		changelogUrl: (version: string) => `https://github.com/NabuCasa/zwave-esp-bridge/releases/tag/${version}`,
+	},
+	esphome: {
+		label: "Portable Z-Wave",
+		description: "Allows connecting to ZWA-2 via WiFi",
+		manifestUrl: "https://firmware.esphome.io/ha-connect-zwa-2/home-assistant-zwa-2/manifest.json",
+		experimental: true,
+		wifi: true,
+	},
+};
+
 /**
  * ESPHome manifest structure
  */
