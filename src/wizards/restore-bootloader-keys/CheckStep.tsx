@@ -31,8 +31,9 @@ export default function CheckStep({ context }: RestoreBootloaderKeysStepProps) {
     <div className="py-8 space-y-4">
       <Alert title="Could not check automatically">
         <p>
-          This ZWA-2 did not answer the check, which can happen when it runs alternative
-          firmware or does not start up properly.
+          The automatic check could not determine whether the bootloader keys are intact.
+          This can happen with newer controller firmware, alternative firmware or when
+          the device does not start up properly.
         </p>
       </Alert>
       <p className="text-gray-600 dark:text-gray-300">

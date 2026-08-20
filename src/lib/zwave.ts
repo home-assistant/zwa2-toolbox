@@ -25,7 +25,14 @@ import {
 	type FirmwareFileFormat,
 } from "zwave-js";
 import { resetZWaveChipViaCommandMode } from "./esp-utils";
-import { isBlank } from "./zg23-tokens";
+import {
+	EXPECTED_ENC,
+	EXPECTED_SIGN_X_TAIL,
+	EXPECTED_SIGN_Y,
+	bytesEqual,
+	isBlank,
+	isZero,
+} from "./zg23-tokens";
 import { NodeIDType, NodeType } from "@zwave-js/core/definitions";
 import type { FirmwareType } from "./firmware-download";
 
@@ -310,14 +317,17 @@ export class ZWaveBinding {
 	 * encryption key makes every OTW update abort with error 0x44.
 	 *
 	 * No Serial API command reads those tokens. This exploits a bounds bug in the
-	 * controller firmware instead. The firmware derives the response length from
-	 * `nvmSize - offset` and truncates it to uint8_t. An offset past the end of
-	 * the NVM therefore wraps to a large positive length. The response then
-	 * carries the flash contents that follow the NVM. The requested length has
-	 * to stay 1.
+	 * controller firmware's NVM backup handler instead. The handler's EOF-clamping
+	 * logic computes `(uint8_t)(nvmSize - offset)` when the offset exceeds NVM
+	 * size. The uint32 subtraction underflows and the uint8 cast wraps to a
+	 * positive byte count, leaking flash contents past the NVM boundary.
 	 *
-	 * The NVM ends where the lockbits page begins. Offset `size + X` therefore
-	 * reads flash address `0x0807E000 + X` and returns `(-X) mod 256` bytes:
+	 * SDK 8.1.0 added bounds checking in the zpal layer that blocks the
+	 * out-of-bounds read — the response comes back as zeros. On those versions
+	 * this method returns null.
+	 *
+	 * The NVM ends where the lockbits page begins. Offset `size + X` reads
+	 * flash address `0x0807E000 + X` and returns `(-X) mod 256` bytes:
 	 *
 	 *   size + 0x286 -> 0x0807E286, 0x7a bytes. The first 16 are
 	 *                   MFG_SECURE_BOOTLOADER_KEY.
@@ -347,6 +357,12 @@ export class ZWaveBinding {
 				return null;
 			}
 
+			// SDK 8.1.0+ bounds-checks the read in the zpal layer and returns
+			// zeros instead of actual flash content.
+			if (controller.sdkVersionGte("8.1.0") === true) {
+				return null;
+			}
+
 			const { size } = await controller.externalNVMOpenExt();
 			try {
 				const encryptionProbe = await controller.externalNVMReadBufferExt(
@@ -364,10 +380,30 @@ export class ZWaveBinding {
 					return null;
 				}
 
-				return (
-					isBlank(encryptionProbe.buffer.subarray(0, 16)) ||
+				const encKey = encryptionProbe.buffer.subarray(0, 16);
+				const signXTail = signingProbe.buffer.subarray(0, 12);
+				const signY = signingProbe.buffer.subarray(12, 44);
+
+				if (
+					bytesEqual(encKey, EXPECTED_ENC) &&
+					bytesEqual(signXTail, EXPECTED_SIGN_X_TAIL) &&
+					bytesEqual(signY, EXPECTED_SIGN_Y)
+				) {
+					return false;
+				}
+
+				if (isZero(encKey) || isZero(signXTail) || isZero(signY)) {
+					return null;
+				}
+
+				if (
+					isBlank(encKey) ||
 					isBlank(signingProbe.buffer.subarray(0, 44))
-				);
+				) {
+					return true;
+				}
+
+				return null;
 			} finally {
 				await controller.externalNVMCloseExt();
 			}

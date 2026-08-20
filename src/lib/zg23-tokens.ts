@@ -44,6 +44,16 @@ export function isBlank(data: Uint8Array): boolean {
 	return data.every((byte) => byte === 0xff);
 }
 
+/** All bytes are zero — the zpal layer blocked the out-of-bounds NVM read */
+export function isZero(data: Uint8Array): boolean {
+	return data.every((byte) => byte === 0x00);
+}
+
+export function bytesEqual(a: Uint8Array, b: Uint8Array): boolean {
+	if (a.length !== b.length) return false;
+	return a.every((byte, i) => byte === b[i]);
+}
+
 function spanBytes(words: readonly number[]): Uint8Array {
 	const bytes = new Uint8Array(words.length * 4);
 	words.forEach((word, i) => {
@@ -62,3 +72,6 @@ const signBytes = spanBytes(SIGN_SPAN_WORDS);
 export const EXPECTED_SIGN_X = signBytes.subarray(0, 32);
 export const EXPECTED_SIGN_Y = signBytes.subarray(32, 64);
 export const EXPECTED_ENC = spanBytes(ENC_SPAN_WORDS).subarray(2, 18);
+
+/** The tail of SIGN_X readable through the NVM probe (bytes 20-31) */
+export const EXPECTED_SIGN_X_TAIL = EXPECTED_SIGN_X.subarray(20, 32);
