@@ -43,6 +43,24 @@ import type { FirmwareType } from "./firmware-download";
  */
 export const OTW_ERROR_BLANK_ENCRYPTION_KEY = 0x44;
 
+// Older bootloaders have a bug in the "erase nvm" menu option
+const MIN_BOOTLOADER_VERSION = [3, 2, 1];
+
+/**
+ * Checks a `major.minor.customer` bootloader version against the minimum.
+ * Accepts the zero-padded form from the bootloader menu, e.g. `3.02.01`.
+ */
+export function isBootloaderOutdated(version: string): boolean {
+	const parts = version.split(".").map((p) => parseInt(p, 10));
+	for (let i = 0; i < MIN_BOOTLOADER_VERSION.length; i++) {
+		const part = parts[i] || 0;
+		if (part !== MIN_BOOTLOADER_VERSION[i]) {
+			return part < MIN_BOOTLOADER_VERSION[i];
+		}
+	}
+	return false;
+}
+
 export interface FlashFirmwareResult {
 	success: boolean;
 	/** `errorCode` is the raw bootloader error code, undefined unless the bootloader rejected the image */
@@ -473,6 +491,39 @@ export class ZWaveBinding {
 			this.onError?.(`Failed to erase NVM: ${getErrorMessage(e)}`);
 			return false;
 		}
+	}
+
+	/**
+	 * Returns the bootloader version. In Serial API mode, the controller
+	 * interview reads it from the running firmware. In bootloader mode, it comes
+	 * from the menu banner. Returns `undefined` when neither source has it.
+	 */
+	getBootloaderVersion(): string | undefined {
+		switch (this.driver?.mode) {
+			case DriverMode.SerialAPI:
+				return this.driver.controller.bootloaderVersion;
+			case DriverMode.Bootloader:
+				return this.driver.bootloader.version;
+		}
+	}
+
+	/**
+	 * Reboots the chip after flashing a bootloader image and waits for the new
+	 * bootloader to show its menu. Call only while in bootloader mode.
+	 */
+	async restartBootloader(): Promise<boolean> {
+		if (this.driver?.mode !== DriverMode.Bootloader) return false;
+
+		// The chip installs the new bootloader during the reboot and then stays
+		// in it because the application image is gone
+		await this.runApplication();
+		await wait(2000);
+		if (this.driver?.mode === DriverMode.Bootloader) return true;
+
+		const success = await this.createDriver();
+		if (success && this.driver?.mode === DriverMode.Bootloader) return true;
+
+		return this.resetToBootloader();
 	}
 
 	getDriverMode(): DriverMode | undefined {

@@ -51,12 +51,22 @@ const RELEASES_LATEST_API_URL = `https://api.github.com/repos/${SILABS_FIRMWARE_
 const RELEASES_API_URL = `https://api.github.com/repos/${SILABS_FIRMWARE_REPO}/releases?per_page=30`;
 const RELEASES_BRANCH_RAW_BASE_URL =
 	`https://raw.githubusercontent.com/${SILABS_FIRMWARE_REPO}/${RELEASES_BRANCH}`;
-export type FirmwareType = "controller" | "repeater" | "zniffer";
 
-const ZWA2_FIRMWARE_PREFIXES: Record<FirmwareType, string> = {
+// No stable release contains a ZWA-2 bootloader yet. Remove this once one does.
+const BOOTLOADER_FALLBACK_RELEASE: GitHubRelease = {
+	tag_name: 'v2026.09.17-beta2',
+	draft: false,
+	prerelease: true,
+};
+
+export type FirmwareType = "controller" | "repeater" | "zniffer";
+export type DownloadableFirmwareType = FirmwareType | "bootloader";
+
+const ZWA2_FIRMWARE_PREFIXES: Record<DownloadableFirmwareType, string> = {
 	controller: 'zwa2_controller',
 	repeater: 'zwa2_repeater',
 	zniffer: 'zwa2_zniffer',
+	bootloader: 'zwa2_bootloader',
 };
 
 /**
@@ -65,7 +75,7 @@ const ZWA2_FIRMWARE_PREFIXES: Record<FirmwareType, string> = {
  * @throws FirmwareDownloadError if download or verification fails
  */
 export async function downloadLatestFirmware(
-	firmwareType: FirmwareType = "controller",
+	firmwareType: DownloadableFirmwareType = "controller",
 ): Promise<FirmwareDownloadResult> {
 	const prefix = ZWA2_FIRMWARE_PREFIXES[firmwareType];
 
@@ -94,6 +104,10 @@ export async function downloadLatestFirmware(
 			!stableReleases.some(release => release.tag_name === latestRelease.tag_name)
 		) {
 			stableReleases.unshift(latestRelease);
+		}
+
+		if (firmwareType === "bootloader") {
+			stableReleases.push(BOOTLOADER_FALLBACK_RELEASE);
 		}
 
 		if (stableReleases.length === 0) {
