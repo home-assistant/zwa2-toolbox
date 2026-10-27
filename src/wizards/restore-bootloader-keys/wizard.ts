@@ -24,7 +24,9 @@ import {
 	EXPECTED_SIGN_Y,
 	SIGN_SPAN_ADDR,
 	SIGN_SPAN_WORDS,
-	isBlank,
+	encryptionSpanBytes,
+	planSpanWrites,
+	signingSpanBytes,
 } from "../../lib/zg23-tokens";
 import swdFirmwareUrl from "../../assets/zwa2-esp-swd-debugger_0.1.0-merged.bin?url";
 
@@ -235,27 +237,38 @@ export async function restoreKeys(
 		await swd.identify();
 
 		const before = await swd.readTokens();
-		const signingBlank = isBlank(before.signX) || isBlank(before.signY);
-		const encryptionBlank = isBlank(before.enc);
+		// Write only the blank words. A key can be partly blank, for example
+		// after an interrupted write.
+		const signWrites = planSpanWrites(
+			SIGN_SPAN_ADDR,
+			SIGN_SPAN_WORDS,
+			signingSpanBytes(before.signX, before.signY),
+		);
+		const encWrites = planSpanWrites(
+			ENC_SPAN_ADDR,
+			ENC_SPAN_WORDS,
+			encryptionSpanBytes(before.enc),
+		);
+		if (!signWrites || !encWrites) {
+			console.error("Keys hold unexpected data:", before);
+			throw new Error(
+				"The keys on the Z-Wave chip hold unexpected data, so they cannot be rewritten.",
+			);
+		}
 
-		if (signingBlank || encryptionBlank) {
+		const writes = [...signWrites, ...encWrites];
+		if (writes.length > 0) {
 			context.setState((prev) => ({
 				...prev,
 				restoreState: { status: "writing" },
 			}));
-			// Write only the spans that are blank. The firmware refuses a range
-			// that still holds data, because flash can only clear bits.
-			if (signingBlank) {
-				await swd.writeSpan(SIGN_SPAN_ADDR, SIGN_SPAN_WORDS);
-			}
-			if (encryptionBlank) {
-				await swd.writeSpan(ENC_SPAN_ADDR, ENC_SPAN_WORDS);
+			for (const { addr, words } of writes) {
+				await swd.writeSpan(addr, words);
 			}
 		}
 
 		context.setState((prev) => ({ ...prev, restoreState: { status: "verifying" } }));
-		const after =
-			signingBlank || encryptionBlank ? await swd.readTokens() : before;
+		const after = writes.length > 0 ? await swd.readTokens() : before;
 		if (
 			!after.signX.equals(EXPECTED_SIGN_X) ||
 			!after.signY.equals(EXPECTED_SIGN_Y) ||

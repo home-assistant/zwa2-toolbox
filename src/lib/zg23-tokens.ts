@@ -75,3 +75,58 @@ export const EXPECTED_ENC = spanBytes(ENC_SPAN_WORDS).subarray(2, 18);
 
 /** The tail of SIGN_X readable through the NVM probe (bytes 20-31) */
 export const EXPECTED_SIGN_X_TAIL = EXPECTED_SIGN_X.subarray(20, 32);
+
+export interface SpanWrite {
+	addr: number;
+	words: number[];
+}
+
+/**
+ * Lists the writes that fill the blank words of a span with their expected
+ * values. Returns `undefined` when a word holds data that differs from the
+ * expected value, because flash can only clear bits.
+ *
+ * `current` holds the span's bytes as read from the device.
+ */
+export function planSpanWrites(
+	spanAddr: number,
+	expected: readonly number[],
+	current: Uint8Array,
+): SpanWrite[] | undefined {
+	const view = new DataView(current.buffer, current.byteOffset, current.byteLength);
+	const writes: SpanWrite[] = [];
+	let run: SpanWrite | undefined;
+	for (let i = 0; i < expected.length; i++) {
+		const word = view.getUint32(i * 4, true);
+		if (word === expected[i]) {
+			run = undefined;
+		} else if (word === 0xffffffff) {
+			if (!run) {
+				run = { addr: spanAddr + i * 4, words: [] };
+				writes.push(run);
+			}
+			run.words.push(expected[i]);
+		} else {
+			return undefined;
+		}
+	}
+	return writes;
+}
+
+/** Rebuilds the signing span from the X and Y keys */
+export function signingSpanBytes(signX: Uint8Array, signY: Uint8Array): Uint8Array {
+	const bytes = new Uint8Array(64);
+	bytes.set(signX, 0);
+	bytes.set(signY, 32);
+	return bytes;
+}
+
+/**
+ * Rebuilds the encryption span from the key. The padding is assumed to read
+ * 0xff. The firmware's own blank check rejects the write if it does not.
+ */
+export function encryptionSpanBytes(enc: Uint8Array): Uint8Array {
+	const bytes = new Uint8Array(20).fill(0xff);
+	bytes.set(enc, 2);
+	return bytes;
+}
