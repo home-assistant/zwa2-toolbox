@@ -691,8 +691,11 @@ export class ZWaveBinding {
 		}
 
 		try {
-			await this.driver.cli.executeCommand(`set_region ${region}`);
-			return true;
+			const response = await this.driver.cli.executeCommand(
+				`set_region ${region}`,
+			);
+			// executeCommand() returns undefined on timeout
+			return response !== undefined;
 		} catch {
 			return false;
 		}
