@@ -77,8 +77,11 @@ export class ZWaveBinding {
 		if (!this.port) return false;
 
 		// ===
-		// Attempt 1: Use Serial API to enter bootloader
-		if (this.driver?.mode === DriverMode.SerialAPI) {
+		// Attempt 1: Ask the running firmware to enter the bootloader
+		if (
+			this.driver?.mode === DriverMode.SerialAPI ||
+			this.driver?.mode === DriverMode.CLI
+		) {
 			try {
 				await this.driver.enterBootloader();
 				return true;
