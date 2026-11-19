@@ -14,7 +14,10 @@ import {
 	type FirmwareType,
 } from "../../lib/firmware-download";
 import { DriverMode } from "zwave-js";
-import { OTW_ERROR_BLANK_ENCRYPTION_KEY } from "../../lib/zwave";
+import {
+	OTW_ERROR_BLANK_ENCRYPTION_KEY,
+	isBootloaderOutdated,
+} from "../../lib/zwave";
 import { applyRepeaterRegion } from "../../lib/regions";
 import { type BytesView } from "@zwave-js/shared";
 
@@ -22,6 +25,9 @@ export type { FirmwareType } from "../../lib/firmware-download";
 
 const BLANK_BOOTLOADER_KEYS_MESSAGE =
 	'The bootloader keys on this ZWA-2 are missing, so firmware updates cannot succeed. Use the "Restore bootloader keys" tool to repair it.';
+
+const BOOTLOADER_UPDATE_FAILED_MESSAGE =
+	'The bootloader update failed and the ZWA-2 has no Z-Wave firmware now. Use the "Recover adapter" tool to install it again.';
 
 const LIKELY_BLANK_BOOTLOADER_KEYS_MESSAGE =
 	'The update was rejected, which means the bootloader keys on this ZWA-2 are likely missing. Use the "Restore bootloader keys" tool to repair it.';
@@ -38,7 +44,7 @@ export interface InstallFirmwareState {
 	flashResult: "success" | "error" | null;
 	errorMessage: string;
 	downloadedFirmwareName: string | null;
-	currentSubStep: number;
+	currentSubStep: InstallSubStep;
 	isDownloading: boolean;
 	detectedFirmwareType: FirmwareType | null;
 	detectionState: "pending" | "detecting" | "done";
@@ -49,6 +55,16 @@ export interface InstallFirmwareState {
 	configureStatus: "idle" | "configuring" | "success" | "error" | "skipped";
 	configureError: string | null;
 }
+
+export const InstallSubStep = {
+	Download: 0,
+	UpdateBootloader: 1,
+	InstallFirmware: 2,
+	EraseNVM: 3,
+	StartApplication: 4,
+} as const;
+export type InstallSubStep =
+	(typeof InstallSubStep)[keyof typeof InstallSubStep];
 
 export type InstallFirmwareWizardStepProps =
 	WizardStepProps<InstallFirmwareState>;
@@ -264,7 +280,7 @@ async function handleInstallStepEntry(
 			progress: 0,
 			flashResult: null,
 			errorMessage: "",
-			currentSubStep: 0,
+			currentSubStep: InstallSubStep.Download,
 			isDownloading: true,
 		}));
 
@@ -279,18 +295,31 @@ async function handleInstallStepEntry(
 			await context.zwaveBinding.initialize();
 		}
 
+		// Updating the bootloader erases the application, so only do it when
+		// the application gets replaced anyway. The interview reports the
+		// version only on recent controller firmware. Otherwise the menu banner
+		// tells us after entering the bootloader.
+		let bootloaderVersion = context.zwaveBinding.getBootloaderVersion();
+		const mayNeedBootloaderUpdate =
+			shouldEraseNvm &&
+			(!bootloaderVersion || isBootloaderOutdated(bootloaderVersion));
+
 		let fileName: string;
 		let firmwareData: BytesView;
+		let bootloaderImage: { fileName: string; data: BytesView } | undefined;
 
-		// Download firmware
+		// Download everything before touching the device
 		try {
 			const downloaded = await downloadLatestFirmware(targetType);
 			fileName = downloaded.fileName;
 			firmwareData = downloaded.data;
+			if (mayNeedBootloaderUpdate) {
+				bootloaderImage = await downloadLatestFirmware("bootloader");
+			}
 			context.setState((prev) => ({
 				...prev,
 				downloadedFirmwareName: fileName,
-				currentSubStep: 1,
+				currentSubStep: InstallSubStep.InstallFirmware,
 				isDownloading: false,
 			}));
 		} catch (error) {
@@ -320,6 +349,59 @@ async function handleInstallStepEntry(
 			return;
 		}
 
+		bootloaderVersion ??= context.zwaveBinding.getBootloaderVersion();
+		if (
+			bootloaderImage &&
+			(!bootloaderVersion || isBootloaderOutdated(bootloaderVersion))
+		) {
+			context.setState((prev) => ({
+				...prev,
+				progress: 0,
+				currentSubStep: InstallSubStep.UpdateBootloader,
+			}));
+			const bootloaderFlashed = await context.zwaveBinding.flashFirmware(
+				bootloaderImage.fileName,
+				bootloaderImage.data,
+			);
+			if (!bootloaderFlashed.success) {
+				// The old bootloader rejected the image and the application is
+				// still intact
+				context.setState((prev) => ({
+					...prev,
+					isFlashing: false,
+					progress: 0,
+					flashResult: "error",
+					errorMessage:
+						bootloaderFlashed.errorCode ===
+						OTW_ERROR_BLANK_ENCRYPTION_KEY
+							? LIKELY_BLANK_BOOTLOADER_KEYS_MESSAGE
+							: "Failed to update the bootloader",
+				}));
+				context.goToStep("Summary");
+				return;
+			}
+
+			const restarted = await context.zwaveBinding.restartBootloader();
+			const newVersion = context.zwaveBinding.getBootloaderVersion();
+			if (!restarted || !newVersion || isBootloaderOutdated(newVersion)) {
+				context.setState((prev) => ({
+					...prev,
+					isFlashing: false,
+					progress: 0,
+					flashResult: "error",
+					errorMessage: BOOTLOADER_UPDATE_FAILED_MESSAGE,
+				}));
+				context.goToStep("Summary");
+				return;
+			}
+		}
+
+		context.setState((prev) => ({
+			...prev,
+			progress: 0,
+			currentSubStep: InstallSubStep.InstallFirmware,
+		}));
+
 		// Flash the firmware (already in bootloader, stays in bootloader after)
 		const flashed = await context.zwaveBinding.flashFirmware(
 			fileName,
@@ -343,7 +425,10 @@ async function handleInstallStepEntry(
 
 		// Erase NVM if switching firmware types (already in bootloader)
 		if (shouldEraseNvm) {
-			context.setState((prev) => ({ ...prev, currentSubStep: 2 }));
+			context.setState((prev) => ({
+				...prev,
+				currentSubStep: InstallSubStep.EraseNVM,
+			}));
 			const eraseSuccess = await context.zwaveBinding.eraseNVM();
 			if (!eraseSuccess) {
 				context.setState((prev) => ({
@@ -359,12 +444,16 @@ async function handleInstallStepEntry(
 		}
 
 		// Start application and verify
-		context.setState((prev) => ({ ...prev, currentSubStep: 3 }));
+		context.setState((prev) => ({
+			...prev,
+			currentSubStep: InstallSubStep.StartApplication,
+		}));
 		await context.zwaveBinding.runApplication();
 
 		if (targetType === "zniffer") {
 			// Use the Zniffer class to verify — the Driver can't detect Zniffer firmware
-			const znifferOk = await context.zwaveBinding.verifyZnifferFirmware();
+			const znifferOk =
+				await context.zwaveBinding.verifyZnifferFirmware();
 			if (znifferOk) {
 				context.setState((prev) => ({
 					...prev,
@@ -379,7 +468,8 @@ async function handleInstallStepEntry(
 					isFlashing: false,
 					progress: 100,
 					flashResult: "error",
-					errorMessage: "Firmware was installed but Zniffer verification failed",
+					errorMessage:
+						"Firmware was installed but Zniffer verification failed",
 				}));
 			}
 		} else {
@@ -400,9 +490,10 @@ async function handleInstallStepEntry(
 					// later in the Configure step are persisted to NVM.
 					await context.zwaveBinding.rebootDevice();
 				}
-				const dsk = targetType === "repeater"
-					? await context.zwaveBinding.getDSK()
-					: null;
+				const dsk =
+					targetType === "repeater"
+						? await context.zwaveBinding.getDSK()
+						: null;
 				context.setState((prev) => ({
 					...prev,
 					isFlashing: false,
@@ -450,7 +541,7 @@ export const installFirmwareWizardConfig: WizardConfig<InstallFirmwareState> = {
 		flashResult: null,
 		errorMessage: "",
 		downloadedFirmwareName: null,
-		currentSubStep: 0,
+		currentSubStep: InstallSubStep.Download,
 		isDownloading: false,
 		detectedFirmwareType: null,
 		detectionState: "pending",
