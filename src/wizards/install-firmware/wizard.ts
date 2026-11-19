@@ -273,8 +273,8 @@ async function handleInstallStepEntry(
 			context.setState((prev) => ({ ...prev, progress }));
 		};
 
-		// Initialize the ZWave driver so resetToBootloader() can use the Serial API
-		// to enter bootloader. Skip for firmware types the Driver can't talk to.
+		// Initialize the ZWave driver so resetToBootloader() can ask the firmware
+		// to enter the bootloader. Skip for firmware types the Driver can't talk to.
 		if (context.state.detectedFirmwareType !== "zniffer") {
 			await context.zwaveBinding.initialize();
 		}
