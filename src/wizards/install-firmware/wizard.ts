@@ -398,7 +398,18 @@ async function handleInstallStepEntry(
 					// The repeater firmware requires a reboot cycle after
 					// the initial flash so that RF region changes made
 					// later in the Configure step are persisted to NVM.
-					await context.zwaveBinding.rebootDevice();
+					if (!(await context.zwaveBinding.rebootDevice())) {
+						context.setState((prev) => ({
+							...prev,
+							isFlashing: false,
+							progress: 100,
+							flashResult: "error",
+							errorMessage:
+								"Firmware installed but the device did not restart. Unplug the device, plug it back in and try again.",
+						}));
+						context.goToStep("Summary");
+						return;
+					}
 				}
 				const dsk = targetType === "repeater"
 					? await context.zwaveBinding.getDSK()
