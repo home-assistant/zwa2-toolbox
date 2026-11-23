@@ -1,5 +1,5 @@
 import type { WizardStepProps } from "../../components/Wizard";
-import type { InstallFirmwareState } from "./wizard";
+import { InstallSubStep, type InstallFirmwareState } from "./wizard";
 import CircularProgress from "../../components/CircularProgress";
 import Spinner from "../../components/Spinner";
 
@@ -44,7 +44,19 @@ export default function FlashStep({
 				</>
 			)}
 
-			{isFlashing && !isDownloading && currentSubStep === 1 && (
+			{isFlashing && !isDownloading && currentSubStep === InstallSubStep.UpdateBootloader && (
+				<>
+					<CircularProgress progress={progress} className="mb-4" />
+					<h3 className="text-lg font-medium text-primary mb-2">
+						Updating bootloader
+					</h3>
+					<p className="text-gray-600 dark:text-gray-300">
+						Updating the bootloader before installing the new firmware... Please do not disconnect the device.
+					</p>
+				</>
+			)}
+
+			{isFlashing && !isDownloading && currentSubStep === InstallSubStep.InstallFirmware && (
 				<>
 					<CircularProgress progress={progress} className="mb-4" />
 					<h3 className="text-lg font-medium text-primary mb-2">
@@ -56,7 +68,7 @@ export default function FlashStep({
 				</>
 			)}
 
-			{isFlashing && !isDownloading && currentSubStep === 2 && (
+			{isFlashing && !isDownloading && currentSubStep === InstallSubStep.EraseNVM && (
 				<>
 					<Spinner size="h-8 w-8" className="inline-block mb-4" />
 					<h3 className="text-lg font-medium text-primary mb-2">
@@ -68,7 +80,7 @@ export default function FlashStep({
 				</>
 			)}
 
-			{isFlashing && !isDownloading && currentSubStep === 3 && (
+			{isFlashing && !isDownloading && currentSubStep === InstallSubStep.StartApplication && (
 				<>
 					<Spinner size="h-8 w-8" className="inline-block mb-4" />
 					<h3 className="text-lg font-medium text-primary mb-2">
